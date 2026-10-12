@@ -159,3 +159,5 @@ server/.env
 
 # Ignore pytest's cache folder (created when tests run)
 .pytest_cache/
+# DDInter raw data:(see data/README.md)
+data/raw/*.csv
