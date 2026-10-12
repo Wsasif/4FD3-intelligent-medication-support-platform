@@ -156,3 +156,6 @@ __pycache__/
 # Ignore secret files where we keep passwords and API keys
 .env
 server/.env
+
+# Ignore pytest's cache folder (created when tests run)
+.pytest_cache/
