@@ -12,6 +12,8 @@ from psycopg import Connection
 from app.core.config import get_settings
 from app.db.session import get_db, pool
 
+from app.api.v1.routes import users
+
 settings = get_settings()
 
 
@@ -42,3 +44,6 @@ def health():
 def health_db(conn: Connection = Depends(get_db)):
     row = conn.execute("SELECT count(*) AS drugs FROM drugs").fetchone()
     return {"status": "ok", "drugs": row["drugs"]}
+
+
+app.include_router(users.router, prefix="/api/v1")
