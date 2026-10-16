@@ -3,9 +3,11 @@ annotated-doc==0.0.5
 annotated-types==0.8.0
 anyio==4.15.1
 certifi==2026.7.22
+cffi==2.1.1
 charset-normalizer==3.5.2
 click==8.5.0
 colorama==0.4.6
+cryptography==50.0.2
 detect-installer==0.2.1
 dnspython==2.9.0
 email-validator==2.3.0
@@ -37,11 +39,13 @@ protobuf==7.36.2
 psycopg==3.3.6
 psycopg-binary==3.3.6
 psycopg-pool==3.3.3
+pycparser==3.11
 pydantic==2.14.1
 pydantic-extra-types==2.11.1
 pydantic-settings==2.16.0
 pydantic_core==2.50.1
 Pygments==2.21.0
+PyJWT==2.15.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.4
 python-multipart==0.0.32
