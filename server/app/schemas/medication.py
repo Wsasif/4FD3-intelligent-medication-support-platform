@@ -43,3 +43,26 @@ class MedicationOut(MedicationBase):
     is_active: bool
     created_at: datetime
     intake_times: list[time]
+
+
+class MedicationUpdate(BaseModel):
+    """Send only the fields you want to change.
+    intake_times replaces the whole list. All rules are re-checked on the result."""
+    name: str | None = None
+    dosage: str | None = None
+    units_per_dose: float | None = None
+    condition: str | None = None
+    quantity_remaining: float | None = None
+    refill_alert_days: int | None = None
+    is_as_needed: bool | None = None
+    low_quantity_alert: float | None = None
+    drug_id: int | None = None
+    pharmacy_id: UUID | None = None
+    start_date: date | None = None
+    end_date: date | None = None
+    notes: str | None = None
+    is_active: bool | None = None          # false = stop taking it, keep the history
+    intake_times: list[time] | None = None
+
+
+    
