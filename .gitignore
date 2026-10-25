@@ -148,6 +148,7 @@ vite.config.ts.timestamp-*
 # Ignore the virtual environment folder
 venv/
 server/venv/
+.venv/
 
 # Ignore Python cached bytecode (temporary speed-up files)
 __pycache__/
