@@ -1,75 +1,32 @@
-# React + TypeScript + Vite
+# Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React, TypeScript, and Vite frontend for the Intelligent Medication Support Platform.
 
-Currently, two official plugins are available:
+## Local setup (Windows PowerShell)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+1. Install Node.js LTS.
+2. From this folder, install dependencies:
+   ```powershell
+   npm install
+   ```
+3. Copy `.env.example` to `.env`. Fill in the Supabase project URL and publishable (or legacy anon) key from the Supabase project settings. Keep the `.env` file local; do not commit it.
+4. Start the frontend:
+   ```powershell
+   npm run dev
+   ```
+5. Start the FastAPI backend separately from `Backend/server`:
+   ```powershell
+   .\.venv\Scripts\Activate.ps1
+   python -m uvicorn app.main:app --reload
+   ```
 
-## React Compiler
+The frontend signs in with Supabase Auth and sends the resulting access token to the backend for medication reads and writes. The backend must use the same Supabase project. User registration may require email confirmation, depending on the project's Auth settings.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+The medication list and add-medication form use the backend API. The Find a Pharmacy page uses browser geolocation with explicit permission and searches OpenStreetMap's public Overpass API; the user's coordinates are sent to that service when searching. Pharmacy coverage and opening-hour tags may be incomplete. Dose check-offs, history, and other demonstration screens are not yet persisted by the API.
 
-## Expanding the ESLint configuration
+## Available scripts
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
-
-You can also install [eslint-plugin-react-x](https://npmx.dev/package/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://npmx.dev/package/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-
-```
+- `npm run dev` — start the Vite development server
+- `npm run build` — type-check and create a production build
+- `npm run lint` — run ESLint
+- `npm run preview` — preview the production build

@@ -4,7 +4,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Clock, ShieldAlert, TriangleAlert } from 'lucide-react';
-import { useMedications } from '../context/MedicationContext';
+import { useMedications } from '../context/useMedications';
 import { alertHistory } from '../data/mockData';
 import { getInteractionAlerts, getRefillAlerts } from '../utils/alerts';
 import { formatTime, getNextDose, getTodaysDoses, timeUntil } from '../utils/schedule';

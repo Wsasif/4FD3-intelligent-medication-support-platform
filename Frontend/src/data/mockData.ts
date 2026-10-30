@@ -1,15 +1,7 @@
 // Fake sample data so the screens have something to show.
 // Will Replace these with real API calls once the backend is ready.
 
-import type { Medication, Pharmacy, AlertItem, IntakeRecord } from '../types';
-
-// Nearby pharmacies shown on the pharmacy page and in the Add Medication form.
-export const pharmacies: Pharmacy[] = [
-  { id: 'p1', name: 'Riverside Pharmacy', distanceKm: 0.8, open: true, closes: '9:00 PM', address: '12 River St' },
-  { id: 'p2', name: 'HealthPlus Pharmacy', distanceKm: 1.4, open: true, closes: '10:00 PM', address: '45 Main St' },
-  { id: 'p3', name: 'Sunrise Pharmacy', distanceKm: 2.1, open: true, closes: '8:00 PM', address: '9 Oak Ave' },
-  { id: 'p4', name: 'Wellness Pharmacy', distanceKm: 3.5, open: true, closes: '9:00 PM', address: '77 King Rd' },
-];
+import type { Medication, AlertItem, IntakeRecord } from '../types';
 
 // Starting list of medications when the app loads.
 export const initialMedications: Medication[] = [

@@ -2,7 +2,7 @@
 // alerts, refills), the next dose, and a short list of things needing attention.
 
 import { Link } from 'react-router-dom';
-import { useMedications } from '../context/MedicationContext';
+import { useMedications } from '../context/useMedications';
 import { getInteractionAlerts, getRefillAlerts } from '../utils/alerts';
 import { formatTime, getNextDose, getTodaysDoses } from '../utils/schedule';
 

@@ -6,8 +6,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Info, X } from 'lucide-react';
-import { useMedications } from '../context/MedicationContext';
-import { pharmacies } from '../data/mockData';
+import { useMedications } from '../context/useMedications';
 
 // Everything the form collects. Inputs give us text, so numbers are kept as
 // strings here and only converted to numbers when saving.
@@ -18,9 +17,7 @@ interface FormState {
   remaining: string;
   intakeTimes: string[];
   tabletsPerIntake: string;
-  remindersOn: boolean;
   refillThreshold: string;
-  pharmacyId: string;
   notes: string;
 }
 
@@ -35,13 +32,11 @@ const emptyForm: FormState = {
   remaining: '',
   intakeTimes: [],
   tabletsPerIntake: '1',
-  remindersOn: true,
   refillThreshold: '5',
-  pharmacyId: '',
   notes: '',
 };
 
-const stepLabels = ['Medication Details', 'Schedule & Pharmacy', 'Review'];
+const stepLabels = ['Medication Details', 'Schedule', 'Review'];
 
 // Shared styling for text boxes and dropdowns.
 const inputClass =
@@ -81,6 +76,8 @@ export default function AddMedicationPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<Errors>({});
   const [newTime, setNewTime] = useState('');
+  const [saveError, setSaveError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Changes one field of the form and clears that field's error message.
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -125,7 +122,6 @@ export default function AddMedicationPage() {
       if (!/^[1-9]\d*$/.test(form.tabletsPerIntake.trim())) {
         e.tabletsPerIntake = 'Enter a number of 1 or more.';
       }
-      if (!form.pharmacyId) e.pharmacyId = 'Please choose a pharmacy.';
     }
 
     setErrors(e);
@@ -144,28 +140,32 @@ export default function AddMedicationPage() {
   }
 
   // Final check of both steps, then adds the medication and returns to the list.
-  function save() {
+  async function save() {
     if (!validate(1)) return setStep(1);
     if (!validate(2)) return setStep(2);
 
-    addMedication({
-      id: crypto.randomUUID(),
-      name: form.name.trim(),
-      dosage: form.dosage.trim(),
-      tabletsPerIntake: Number(form.tabletsPerIntake),
-      condition: form.condition.trim(),
-      intakeTimes: form.intakeTimes,
-      remaining: Number(form.remaining),
-      refillThreshold: Number(form.refillThreshold),
-      pharmacyId: form.pharmacyId,
-      remindersOn: form.remindersOn,
-      notes: form.notes.trim() || undefined,
-    });
-    navigate('/medications');
+    setSaveError('');
+    setSaving(true);
+    try {
+      await addMedication({
+        name: form.name.trim(),
+        dosage: form.dosage.trim(),
+        tabletsPerIntake: Number(form.tabletsPerIntake),
+        condition: form.condition.trim(),
+        intakeTimes: form.intakeTimes,
+        remaining: Number(form.remaining),
+        refillThreshold: Number(form.refillThreshold),
+        pharmacyId: '',
+        remindersOn: true,
+        notes: form.notes.trim() || undefined,
+      });
+      navigate('/medications');
+    } catch (error: unknown) {
+      setSaveError(error instanceof Error ? error.message : 'Could not save this medication.');
+    } finally {
+      setSaving(false);
+    }
   }
-
-  // Used on the review step to show the pharmacy name instead of its id.
-  const selectedPharmacy = pharmacies.find(p => p.id === form.pharmacyId);
 
   return (
     <div>
@@ -254,7 +254,7 @@ export default function AddMedicationPage() {
           </div>
         )}
 
-        {/* STEP 2: schedule and pharmacy */}
+        {/* STEP 2: schedule details */}
         {step === 2 && (
           <div className="grid gap-5 md:grid-cols-2">
             <div>
@@ -302,20 +302,7 @@ export default function AddMedicationPage() {
               />
             </Field>
 
-            <div className="flex items-center gap-3">
-              <input
-                id="remindersOn"
-                type="checkbox"
-                className="h-5 w-5"
-                checked={form.remindersOn}
-                onChange={e => update('remindersOn', e.target.checked)}
-              />
-              <label htmlFor="remindersOn" className="text-base font-medium">
-                Set reminder
-              </label>
-            </div>
-
-            <Field label="Refill threshold" htmlFor="refillThreshold">
+            <Field label="Low-quantity alert threshold" htmlFor="refillThreshold">
               <select
                 id="refillThreshold"
                 className={inputClass}
@@ -325,22 +312,6 @@ export default function AddMedicationPage() {
                 {[3, 5, 7, 10, 14].map(n => (
                   <option key={n} value={n}>
                     Alert when below {n} tablets
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Pharmacy" htmlFor="pharmacyId" required error={errors.pharmacyId}>
-              <select
-                id="pharmacyId"
-                className={inputClass}
-                value={form.pharmacyId}
-                onChange={e => update('pharmacyId', e.target.value)}
-              >
-                <option value="">Select a pharmacy</option>
-                {pharmacies.map(p => (
-                  <option key={p.id} value={p.id}>
-                    {p.name} ({p.distanceKm} km)
                   </option>
                 ))}
               </select>
@@ -371,9 +342,7 @@ export default function AddMedicationPage() {
                 ['Quantity remaining', `${form.remaining} tablets`],
                 ['Intake times', form.intakeTimes.join(', ')],
                 ['Tablets per intake', form.tabletsPerIntake],
-                ['Reminder', form.remindersOn ? 'On' : 'Off'],
-                ['Refill alert below', `${form.refillThreshold} tablets`],
-                ['Pharmacy', selectedPharmacy?.name ?? ''],
+                ['Low-quantity alert below', `${form.refillThreshold} tablets`],
                 ['Notes', form.notes || '—'],
               ].map(([term, value]) => (
                 <div key={term} className="border-b border-slate-100 pb-2">
@@ -384,6 +353,8 @@ export default function AddMedicationPage() {
             </dl>
           </div>
         )}
+
+        {saveError && <p role="alert" className="mt-4 text-sm text-red-700">{saveError}</p>}
 
         {/* Cancel / Back and Next / Save buttons */}
         <div className="mt-8 flex gap-4">
@@ -406,9 +377,10 @@ export default function AddMedicationPage() {
             <button
               type="button"
               onClick={save}
-              className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
+              disabled={saving}
+              className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              Save Medication
+              {saving ? 'Saving…' : 'Save Medication'}
             </button>
           )}
         </div>

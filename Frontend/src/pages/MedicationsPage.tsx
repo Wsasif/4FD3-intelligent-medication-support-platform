@@ -3,11 +3,11 @@
 
 import { Link } from 'react-router-dom';
 import { Plus, ChevronRight, Check } from 'lucide-react';
-import { useMedications } from '../context/MedicationContext';
+import { useMedications } from '../context/useMedications';
 import { formatTime, getTodaysDoses } from '../utils/schedule';
 
 export default function MedicationsPage() {
-  const { medications, takenDoses, markDoseTaken } = useMedications();
+  const { medications, takenDoses, markDoseTaken, loading, error, reloadMedications } = useMedications();
   const doses = getTodaysDoses(medications);
 
   return (
@@ -21,6 +21,20 @@ export default function MedicationsPage() {
           <Plus size={20} /> Add Medication
         </Link>
       </div>
+
+      {loading && <p role="status" className="mb-4 text-slate-600">Loading medications…</p>}
+      {error && (
+        <div role="alert" className="mb-4 flex items-center justify-between rounded-lg bg-red-50 p-3 text-red-800">
+          <span>{error}</span>
+          <button
+            type="button"
+            onClick={() => void reloadMedications()}
+            className="rounded bg-white px-3 py-1 font-medium text-red-800"
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       <h2 className="mb-2 text-lg font-semibold">Current Medications</h2>
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -37,6 +51,11 @@ export default function MedicationsPage() {
             </tr>
           </thead>
           <tbody>
+            {!loading && medications.length === 0 && (
+              <tr className="border-t border-slate-100">
+                <td colSpan={7} className="p-4 text-slate-600">No medications have been added to your account yet.</td>
+              </tr>
+            )}
             {medications.map(m => {
               // Values worked out for each row of the table
               const low = m.remaining < m.refillThreshold;
@@ -79,6 +98,9 @@ export default function MedicationsPage() {
       {/* Today's Schedule: one card per dose, with a circle to mark it taken */}
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-lg font-semibold text-blue-900">Today's Schedule</h2>
+        <p className="mb-3 text-sm text-slate-500">
+          Dose check-offs are currently temporary and are not saved to the database.
+        </p>
         {doses.length === 0 ? (
           <p className="text-slate-500">No medications scheduled today.</p>
         ) : (

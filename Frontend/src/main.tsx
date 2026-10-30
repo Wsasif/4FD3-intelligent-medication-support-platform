@@ -7,7 +7,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import './index.css';
 import App from './App';
-import { MedicationProvider } from './context/MedicationContext';
+import { AuthProvider } from './context/AuthProvider';
+import { MedicationProvider } from './context/MedicationProvider';
 import { applyTextSize, getSavedTextSize } from './utils/textSize';
 
 // Apply the saved text size right away so the page doesn't flash at the default size
@@ -16,9 +17,11 @@ applyTextSize(getSavedTextSize());
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <MedicationProvider>
-        <App />
-      </MedicationProvider>
+      <AuthProvider>
+        <MedicationProvider>
+          <App />
+        </MedicationProvider>
+      </AuthProvider>
     </BrowserRouter>
   </StrictMode>
 );

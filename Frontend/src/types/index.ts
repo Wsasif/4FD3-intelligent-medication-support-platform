@@ -19,16 +19,6 @@ export interface Medication {
   notes?: string;
 }
 
-// A pharmacy the user can pick or look up on the Find a Pharmacy page.
-export interface Pharmacy {
-  id: string;
-  name: string;
-  distanceKm: number;
-  open: boolean;
-  closes: string;
-  address: string;
-}
-
 // A single alert: a dose reminder, a refill warning, or a drug interaction (DDI).
 export interface AlertItem {
   id: string;

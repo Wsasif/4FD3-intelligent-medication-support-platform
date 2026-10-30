@@ -9,6 +9,7 @@ dist-ssr
 # Environment variables / secrets 
 .env
 .env.*
+!.env.example
 
 
 # Logs

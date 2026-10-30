@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import { intakeHistory } from '../data/mockData';
 import type { IntakeRecord } from '../types';
-import { useMedications } from '../context/MedicationContext';
+import { useMedications } from '../context/useMedications';
 import { formatTime } from '../utils/schedule';
 
 // Badge colors for each status.
