@@ -23,6 +23,8 @@ lerna-debug.log*
 
 # Test output
 coverage
+test-results
+playwright-report
 cypress/videos
 cypress/screenshots
 
