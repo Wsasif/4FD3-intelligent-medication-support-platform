@@ -1,9 +1,14 @@
+# =============================================
+# BACKEND
+# =============================================
+
 # Logs
 logs
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 lerna-debug.log*
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -38,6 +43,7 @@ bower_components
 build/Release
 
 # Dependency directories
+node_modules
 node_modules/
 jspm_packages/
 
@@ -65,10 +71,11 @@ web_modules/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variable files
+# dotenv environment variable files / secrets
 .env
 .env.*
 !.env.example
+server/.env
 
 # parcel-bundler cache (https://parceljs.org/)
 .cache
@@ -154,11 +161,35 @@ server/venv/
 __pycache__/
 *.py[cod]
 
-# Ignore secret files where we keep passwords and API keys
-.env
-server/.env
-
 # Ignore pytest's cache folder (created when tests run)
 .pytest_cache/
+
 # DDInter raw data:(see data/README.md)
 data/raw/*.csv
+
+
+# =============================================
+# (additions from FRONTEND not already covered in above BACKEND section)
+# =============================================
+
+# Build output
+dist-ssr
+*.local
+
+# Test output
+cypress/videos
+cypress/screenshots
+
+# Editor files
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+.DS_Store
+Thumbs.db
