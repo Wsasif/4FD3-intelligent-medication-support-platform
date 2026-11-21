@@ -16,9 +16,10 @@ export default function MedicationsPage() {
         <h1 className="text-2xl font-bold text-blue-900">My Medications</h1>
         <Link
           to="/medications/new"
+          aria-label="Add a medication"
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
         >
-          <Plus size={20} /> Add Medication
+          <Plus size={20} aria-hidden="true" /> Add Medication
         </Link>
       </div>
 
@@ -37,17 +38,23 @@ export default function MedicationsPage() {
       )}
 
       <h2 className="mb-2 text-lg font-semibold">Current Medications</h2>
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+      <div
+        role="region"
+        aria-label="Scrollable current medications table"
+        tabIndex={0}
+        className="overflow-x-auto rounded-xl border border-slate-200 bg-white"
+      >
         <table className="w-full text-left">
+          <caption className="sr-only">Current medications and refill status</caption>
           <thead className="text-sm text-slate-600">
             <tr>
-              <th className="p-3">Medication</th>
-              <th>Dosage</th>
-              <th>Next Intake</th>
-              <th>Remaining</th>
-              <th>Refill Status</th>
-              <th>Condition</th>
-              <th></th>
+              <th scope="col" className="p-3">Medication</th>
+              <th scope="col">Dosage</th>
+              <th scope="col">Next Intake</th>
+              <th scope="col">Remaining</th>
+              <th scope="col">Refill Status</th>
+              <th scope="col">Condition</th>
+              <th scope="col"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
@@ -66,9 +73,9 @@ export default function MedicationsPage() {
 
               return (
                 <tr key={m.id} className="border-t border-slate-100">
-                  <td className="p-3 font-semibold">
+                  <th scope="row" className="p-3 font-semibold">
                     {m.name} <span className="font-normal text-slate-500">{m.dosage}</span>
-                  </td>
+                  </th>
                   <td>
                     {m.tabletsPerIntake} {m.tabletsPerIntake === 1 ? 'tablet' : 'tablets'}
                     <span className="text-slate-500"> ({frequency})</span>
@@ -86,7 +93,7 @@ export default function MedicationsPage() {
                   </td>
                   <td>{m.condition}</td>
                   <td>
-                    <ChevronRight />
+                    <ChevronRight aria-hidden="true" />
                   </td>
                 </tr>
               );

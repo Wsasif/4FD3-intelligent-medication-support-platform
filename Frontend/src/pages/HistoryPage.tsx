@@ -36,7 +36,7 @@ export default function HistoryPage() {
 
       <div className="mb-4 flex flex-wrap items-center gap-3">
         <select
-          aria-label="Filter by medication"
+          aria-label="Filter medication history by medication"
           value={medFilter}
           onChange={e => setMedFilter(e.target.value)}
           className="rounded-lg border border-slate-300 bg-white px-3 py-3"
@@ -50,7 +50,7 @@ export default function HistoryPage() {
         </select>
 
         <select
-          aria-label="Filter by status"
+          aria-label="Filter medication history by status"
           value={statusFilter}
           onChange={e => setStatusFilter(e.target.value)}
           className="rounded-lg border border-slate-300 bg-white px-3 py-3"
@@ -61,19 +61,20 @@ export default function HistoryPage() {
           <option value="Skipped">Skipped</option>
         </select>
 
-        <p className="ml-auto rounded-lg bg-sky-100 px-4 py-2 font-semibold text-blue-900">
+        <p role="status" aria-live="polite" className="ml-auto rounded-lg bg-sky-100 px-4 py-2 font-semibold text-blue-900">
           Adherence: {adherence}% ({takenCount} of {rows.length})
         </p>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left">
+          <caption className="sr-only">Medication dose history and adherence records</caption>
           <thead className="text-sm text-slate-600">
             <tr>
-              <th className="p-3">Date</th>
-              <th>Time</th>
-              <th>Medication</th>
-              <th>Status</th>
+              <th scope="col" className="p-3">Date</th>
+              <th scope="col">Time</th>
+              <th scope="col">Medication</th>
+              <th scope="col">Status</th>
             </tr>
           </thead>
           <tbody>
