@@ -57,7 +57,7 @@ export default function AlertsPage() {
         {next ? (
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <Clock size={40} className="text-blue-600" />
+              <Clock size={40} className="text-blue-600" aria-hidden="true" />
               <div>
                 <p className="text-sm text-slate-600">Next medication</p>
                 <p className="text-3xl font-bold text-blue-900">{formatTime(next.time)}</p>
@@ -76,6 +76,9 @@ export default function AlertsPage() {
               <button
                 type="button"
                 onClick={handleTaken}
+                aria-label={
+                  next ? `Mark ${next.medication.name} at ${formatTime(next.time)} as taken` : 'Medication taken'
+                }
                 className="rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700"
               >
                 Taken
@@ -117,9 +120,9 @@ export default function AlertsPage() {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
                   {isDDI ? (
-                    <ShieldAlert className="mt-1 text-red-600" />
+                    <ShieldAlert className="mt-1 text-red-600" aria-hidden="true" />
                   ) : (
-                    <TriangleAlert className="mt-1 text-amber-600" />
+                    <TriangleAlert className="mt-1 text-amber-600" aria-hidden="true" />
                   )}
                   <div>
                     <p className={`font-bold ${isDDI ? 'text-red-800' : 'text-amber-900'}`}>
@@ -139,6 +142,7 @@ export default function AlertsPage() {
                       type="button"
                       onClick={() => setExpandedId(open ? null : alert.id)}
                       aria-expanded={open}
+                      aria-controls={`interaction-details-${alert.id}`}
                       className="flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-4 py-2 font-semibold text-blue-800 hover:bg-slate-50"
                     >
                       Review interaction {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -155,7 +159,10 @@ export default function AlertsPage() {
               </div>
 
               {isDDI && open && (
-                <p className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-700">
+                <p
+                  id={`interaction-details-${alert.id}`}
+                  className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-700"
+                >
                   This combination may increase the risk of certain side effects. Please talk to your
                   doctor or pharmacist before changing how you take your medications. This alert is
                   assistance only and is not medical advice or diagnosis.
@@ -171,12 +178,13 @@ export default function AlertsPage() {
         <h2 className="mb-3 text-lg font-semibold">Recent Alert History</h2>
         <div className="overflow-x-auto">
           <table className="w-full text-left">
+            <caption className="sr-only">Recent medication alert history</caption>
             <thead className="text-sm text-slate-600">
               <tr>
-                <th className="p-2">Date &amp; Time</th>
-                <th>Type</th>
-                <th>Details</th>
-                <th>Severity</th>
+                <th scope="col" className="p-2">Date &amp; Time</th>
+                <th scope="col">Type</th>
+                <th scope="col">Details</th>
+                <th scope="col">Severity</th>
               </tr>
             </thead>
             <tbody>

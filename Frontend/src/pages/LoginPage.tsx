@@ -38,7 +38,8 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+      <a className="skip-link" href="#login-form">Skip to login form</a>
+      <section id="login-form" className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm" tabIndex={-1}>
         <h1 className="mb-2 text-2xl font-bold text-blue-900">
           {mode === 'sign-in' ? 'Sign in' : 'Create your account'}
         </h1>
@@ -62,6 +63,8 @@ export default function LoginPage() {
               required
               value={email}
               onChange={event => setEmail(event.target.value)}
+              aria-invalid={Boolean(requestError)}
+              aria-describedby={requestError ? 'authentication-error' : undefined}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
             />
           </label>
@@ -74,10 +77,12 @@ export default function LoginPage() {
               required
               value={password}
               onChange={event => setPassword(event.target.value)}
+              aria-invalid={Boolean(requestError)}
+              aria-describedby={requestError ? 'authentication-error' : undefined}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
             />
           </label>
-          {requestError && <p role="alert" className="text-sm text-red-700">{requestError}</p>}
+          {requestError && <p id="authentication-error" role="alert" className="text-sm text-red-700">{requestError}</p>}
           {notice && <p role="status" className="text-sm text-green-700">{notice}</p>}
           <button
             type="submit"

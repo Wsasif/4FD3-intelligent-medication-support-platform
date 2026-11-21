@@ -19,6 +19,7 @@ function StatCard({ label, value, to, warn }: StatCardProps) {
   return (
     <Link
       to={to}
+      aria-label={`${label}: ${value}${warn ? ', attention needed' : ''}`}
       className={`rounded-xl border p-5 hover:shadow ${
         warn ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'
       }`}

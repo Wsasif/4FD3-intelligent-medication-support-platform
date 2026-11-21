@@ -94,17 +94,20 @@ export default function PharmaciesPage() {
           type="button"
           onClick={() => void searchNearby()}
           disabled={loading}
+          aria-live="polite"
           className="flex items-center gap-2 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          <MapPin size={18} />
+          <MapPin size={18} aria-hidden="true" />
           {loading ? 'Searching nearby…' : hasSearched ? 'Search my location again' : 'Find pharmacies near me'}
         </button>
 
         {hasSearched && (
           <>
             <div className="relative min-w-52 flex-1">
-              <Search size={18} className="absolute left-3 top-3.5 text-slate-400" />
+              <Search size={18} className="absolute left-3 top-3.5 text-slate-400" aria-hidden="true" />
               <input
+                id="pharmacy-name-filter"
+                type="search"
                 aria-label="Search pharmacy names"
                 placeholder="Filter by pharmacy name"
                 value={search}
@@ -113,6 +116,7 @@ export default function PharmaciesPage() {
               />
             </div>
             <select
+              id="pharmacy-distance-filter"
               aria-label="Maximum distance"
               value={maxKm}
               onChange={event => setMaxKm(Number(event.target.value))}
@@ -142,7 +146,11 @@ export default function PharmaciesPage() {
           </p>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
-            <div className="min-h-80 overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+            <div
+              role="region"
+              aria-label="Map of your location and nearby pharmacies"
+              className="min-h-80 overflow-hidden rounded-xl border border-slate-200 bg-slate-100"
+            >
               {location ? (
                 <Suspense fallback={<div className="p-6 text-slate-600">Loading map…</div>}>
                   <PharmacyMap
@@ -174,6 +182,7 @@ export default function PharmaciesPage() {
                   <button
                     type="button"
                     onClick={() => setSelectedId(selectedId === pharmacy.id ? null : pharmacy.id)}
+                    aria-expanded={selectedId === pharmacy.id}
                     className="w-full text-left"
                   >
                     <span className="font-semibold">{pharmacy.name}</span>
@@ -193,7 +202,7 @@ export default function PharmaciesPage() {
                       rel="noreferrer"
                       className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-blue-600 py-2 font-medium text-white hover:bg-blue-700"
                     >
-                      <Navigation size={16} /> Directions
+                      <Navigation size={16} aria-hidden="true" /> Directions
                     </a>
                     <a
                       href={pharmacy.osmUrl}
@@ -208,7 +217,7 @@ export default function PharmaciesPage() {
               ))}
             </ul>
           </div>
-          <p className="mt-3 text-xs text-slate-500">
+          <p className="mt-3 text-xs text-slate-700">
             Map data &copy; OpenStreetMap contributors. Pharmacy information is community maintained; verify details directly with the pharmacy.
           </p>
         </>

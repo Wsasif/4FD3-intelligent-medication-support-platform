@@ -21,16 +21,18 @@ function Toggle({ id, label, description, checked, onChange }: ToggleProps) {
   return (
     <div className="flex items-center justify-between gap-4 py-3">
       <div>
-        <label htmlFor={id} className="font-medium">
+        <span id={`${id}-label`} className="font-medium">
           {label}
-        </label>
-        <p className="text-sm text-slate-500">{description}</p>
+        </span>
+        <p id={`${id}-description`} className="text-sm text-slate-500">{description}</p>
       </div>
       <button
         id={id}
         type="button"
         role="switch"
         aria-checked={checked}
+        aria-labelledby={`${id}-label`}
+        aria-describedby={`${id}-description`}
         onClick={() => onChange(!checked)}
         className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${
           checked ? 'bg-blue-600' : 'bg-slate-300'
