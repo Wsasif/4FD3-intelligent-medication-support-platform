@@ -32,19 +32,19 @@ const typeLabels = {
 };
 
 export default function AlertsPage() {
-  const { medications, takenDoses, markDoseTaken } = useMedications();
+  const { medications, takenDoses, missedDoses, skippedDoses, markDoseTaken } = useMedications();
   const [snoozed, setSnoozed] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Work out the next dose and the alerts that are active right now
   const doses = getTodaysDoses(medications);
-  const next = getNextDose(doses, takenDoses);
+  const next = getNextDose(doses, [...takenDoses, ...missedDoses, ...skippedDoses]);
   const alerts = [...getInteractionAlerts(medications), ...getRefillAlerts(medications)];
 
   // Marks the next dose as taken and clears the snooze message.
   function handleTaken() {
     if (!next) return;
-    markDoseTaken(next.medication.id, next.time);
+    void markDoseTaken(next.medication.id, next.time);
     setSnoozed(false);
   }
 

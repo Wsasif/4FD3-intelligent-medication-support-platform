@@ -32,7 +32,7 @@ const emptyForm: FormState = {
   remaining: '',
   intakeTimes: [],
   tabletsPerIntake: '1',
-  refillThreshold: '5',
+  refillThreshold: '',
   notes: '',
 };
 
@@ -121,6 +121,9 @@ export default function AddMedicationPage() {
       if (form.intakeTimes.length === 0) e.intakeTimes = 'Add at least one intake time.';
       if (!/^[1-9]\d*$/.test(form.tabletsPerIntake.trim())) {
         e.tabletsPerIntake = 'Enter a number of 1 or more.';
+      }
+      if (!form.refillThreshold) {
+        e.refillThreshold = 'Select a refill alert threshold.';
       }
     }
 
@@ -325,7 +328,12 @@ export default function AddMedicationPage() {
               />
             </Field>
 
-            <Field label="Low-quantity alert threshold" htmlFor="refillThreshold">
+            <Field
+              label="Low-quantity alert threshold"
+              htmlFor="refillThreshold"
+              required
+              error={errors.refillThreshold}
+            >
               <select
                 id="refillThreshold"
                 name="refillThreshold"
@@ -333,6 +341,7 @@ export default function AddMedicationPage() {
                 value={form.refillThreshold}
                 onChange={e => update('refillThreshold', e.target.value)}
               >
+                <option value="">Select a threshold</option>
                 {[3, 5, 7, 10, 14].map(n => (
                   <option key={n} value={n}>
                     Alert when below {n} tablets

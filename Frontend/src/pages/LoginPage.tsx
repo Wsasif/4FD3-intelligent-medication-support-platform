@@ -7,6 +7,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { session, loading, configured, error: sessionError, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [requestError, setRequestError] = useState('');
@@ -26,7 +27,8 @@ export default function LoginPage() {
       if (mode === 'sign-in') {
         await signIn(email, password);
       } else {
-        const signedIn = await signUp(email, password);
+        if (!fullName.trim()) throw new Error('Full name is required.');
+        const signedIn = await signUp(email, password, fullName);
         if (!signedIn) setNotice('Account created. Check your email to confirm it, then sign in.');
       }
     } catch (error: unknown) {
@@ -55,6 +57,19 @@ export default function LoginPage() {
         {sessionError && <p role="alert" className="mb-4 text-sm text-red-700">{sessionError}</p>}
 
         <form onSubmit={submit} className="space-y-4">
+          {mode === 'sign-up' && (
+            <label className="block text-sm font-medium text-slate-700">
+              Full name
+              <input
+                type="text"
+                autoComplete="name"
+                required
+                value={fullName}
+                onChange={event => setFullName(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+              />
+            </label>
+          )}
           <label className="block text-sm font-medium text-slate-700">
             Email
             <input

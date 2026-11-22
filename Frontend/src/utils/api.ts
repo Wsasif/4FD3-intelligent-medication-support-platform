@@ -25,6 +25,39 @@ export interface CreateMedicationRequest {
   notes: string | null;
 }
 
+export interface ApiDoseLog {
+  id: string;
+  medication_id: string;
+  medication_name: string;
+  dosage: string;
+  scheduled_for: string;
+  taken_at: string | null;
+  status: 'taken' | 'skipped' | 'missed';
+}
+
+export interface CreateDoseLogRequest {
+  medication_id: string;
+  scheduled_for: string;
+  status: 'taken' | 'skipped' | 'missed';
+}
+
+export interface ApiProfile {
+  id: string;
+  email: string | null;
+  full_name: string;
+}
+
+export interface UpdateMedicationRequest {
+  name?: string;
+  dosage?: string;
+  units_per_dose?: number;
+  condition?: string;
+  quantity_remaining?: number;
+  low_quantity_alert?: number;
+  intake_times?: string[];
+  notes?: string | null;
+}
+
 async function requestApi<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -85,6 +118,46 @@ export function createMedication(
   return requestApi<ApiMedication>('/api/v1/medications', accessToken, {
     method: 'POST',
     body: JSON.stringify(medication),
+  });
+}
+
+export function updateMedication(
+  accessToken: string,
+  medicationId: string,
+  medication: UpdateMedicationRequest,
+): Promise<ApiMedication> {
+  return requestApi<ApiMedication>(`/api/v1/medications/${medicationId}`, accessToken, {
+    method: 'PATCH',
+    body: JSON.stringify(medication),
+  });
+}
+
+export function getDoseLogs(accessToken: string): Promise<ApiDoseLog[]> {
+  const timeZone = encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone);
+  return requestApi<ApiDoseLog[]>(
+    `/api/v1/dose-logs?time_zone=${timeZone}`,
+    accessToken,
+  );
+}
+
+export function createDoseLog(
+  accessToken: string,
+  dose: CreateDoseLogRequest,
+): Promise<ApiDoseLog> {
+  return requestApi<ApiDoseLog>('/api/v1/dose-logs', accessToken, {
+    method: 'POST',
+    body: JSON.stringify(dose),
+  });
+}
+
+export function getProfile(accessToken: string): Promise<ApiProfile> {
+  return requestApi<ApiProfile>('/api/v1/users/me', accessToken);
+}
+
+export function updateProfile(accessToken: string, fullName: string): Promise<ApiProfile> {
+  return requestApi<ApiProfile>('/api/v1/users/me', accessToken, {
+    method: 'PATCH',
+    body: JSON.stringify({ full_name: fullName }),
   });
 }
 
