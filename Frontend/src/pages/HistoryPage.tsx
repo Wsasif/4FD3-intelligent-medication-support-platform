@@ -1,11 +1,11 @@
-// "Medication History" page. A table of past doses that can be filtered by
-// medication and status, with an adherence percentage for the rows being shown.
-// The data is sample data for now.
+// "Medication History" page. Past doses are loaded from persisted dose logs.
 
-import { useState } from 'react';
-import { intakeHistory } from '../data/mockData';
+import { useEffect, useState } from 'react';
 import type { IntakeRecord } from '../types';
 import { useMedications } from '../context/useMedications';
+import { useAuth } from '../context/useAuth';
+import { getDoseLogs } from '../utils/api';
+import type { ApiDoseLog } from '../utils/api';
 import { formatTime } from '../utils/schedule';
 
 // Badge colors for each status.
@@ -17,18 +17,60 @@ const statusColors: Record<IntakeRecord['status'], string> = {
 
 export default function HistoryPage() {
   const { medications } = useMedications();
+  const { session } = useAuth();
   const [medFilter, setMedFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [rows, setRows] = useState<IntakeRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    let active = true;
+    setLoading(true);
+    setError('');
+
+    getDoseLogs(session.access_token)
+      .then((logs: ApiDoseLog[]) => {
+        if (!active) return;
+        setRows(logs.map(log => {
+          const scheduled = new Date(log.scheduled_for);
+          const date = [
+            scheduled.getFullYear(),
+            String(scheduled.getMonth() + 1).padStart(2, '0'),
+            String(scheduled.getDate()).padStart(2, '0'),
+          ].join('-');
+          return {
+            id: log.id,
+            date,
+            time: `${String(scheduled.getHours()).padStart(2, '0')}:${String(scheduled.getMinutes()).padStart(2, '0')}`,
+            medicationName: log.medication_name,
+            dosage: log.dosage,
+            status: log.status === 'taken' ? 'Taken' : log.status === 'missed' ? 'Missed' : 'Skipped',
+          };
+        }));
+      })
+      .catch((requestError: unknown) => {
+        if (active) setError(requestError instanceof Error ? requestError.message : 'Could not load medication history.');
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [session?.access_token]);
 
   // Apply both filters, then sort with the newest records first
-  const rows = intakeHistory
+  const filteredRows = rows
     .filter(r => medFilter === 'all' || r.medicationName === medFilter)
     .filter(r => statusFilter === 'all' || r.status === statusFilter)
     .sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time));
 
   // Adherence = share of the shown rows that were taken
-  const takenCount = rows.filter(r => r.status === 'Taken').length;
-  const adherence = rows.length === 0 ? 0 : Math.round((takenCount / rows.length) * 100);
+  const takenCount = filteredRows.filter(r => r.status === 'Taken').length;
+  const adherence = filteredRows.length === 0 ? 0 : Math.round((takenCount / filteredRows.length) * 100);
 
   return (
     <div>
@@ -62,9 +104,12 @@ export default function HistoryPage() {
         </select>
 
         <p role="status" aria-live="polite" className="ml-auto rounded-lg bg-sky-100 px-4 py-2 font-semibold text-blue-900">
-          Adherence: {adherence}% ({takenCount} of {rows.length})
+          Adherence: {adherence}% ({takenCount} of {filteredRows.length})
         </p>
       </div>
+
+      {loading && <p role="status" className="mb-4 text-slate-600">Loading medication history…</p>}
+      {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
         <table className="w-full text-left">
@@ -78,14 +123,14 @@ export default function HistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.length === 0 && (
+            {!loading && filteredRows.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-slate-500">
                   No records match these filters.
                 </td>
               </tr>
             )}
-            {rows.map(r => (
+            {filteredRows.map(r => (
               <tr key={r.id} className="border-t border-slate-100">
                 <td className="p-3">{r.date}</td>
                 <td>{formatTime(r.time)}</td>

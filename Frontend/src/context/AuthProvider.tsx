@@ -47,9 +47,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (signInError) throw signInError;
   }
 
-  async function signUp(email: string, password: string): Promise<boolean> {
+  async function signUp(email: string, password: string, fullName: string): Promise<boolean> {
     if (!supabase) throw new Error('Supabase is not configured. Set the frontend environment variables first.');
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { full_name: fullName.trim() } },
+    });
     if (signUpError) throw signUpError;
     return data.session !== null;
   }

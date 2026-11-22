@@ -8,7 +8,13 @@ import type { Medication } from '../types';
 import { MedicationContext } from './MedicationContext';
 import type { MedicationContextValue } from './MedicationContext';
 import { useAuth } from './useAuth';
-import { createMedication as postMedication, getMedications } from '../utils/api';
+import {
+  createDoseLog,
+  createMedication as postMedication,
+  getDoseLogs,
+  getMedications,
+  updateMedication as patchMedication,
+} from '../utils/api';
 
 function mapMedication(row: Awaited<ReturnType<typeof getMedications>>[number]): Medication {
   return {
@@ -26,11 +32,50 @@ function mapMedication(row: Awaited<ReturnType<typeof getMedications>>[number]):
   };
 }
 
+function localDoseKey(row: { medication_id: string; scheduled_for: string }): string | null {
+  const date = new Date(row.scheduled_for);
+  const localDate = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-');
+  const today = [
+    new Date().getFullYear(),
+    String(new Date().getMonth() + 1).padStart(2, '0'),
+    String(new Date().getDate()).padStart(2, '0'),
+  ].join('-');
+  if (localDate !== today) return null;
+  const time = `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+  return `${row.medication_id}|${time}`;
+}
+
+function syncDoseStates(
+  doseRows: Awaited<ReturnType<typeof getDoseLogs>>,
+  setTakenDoses: (keys: string[]) => void,
+  setMissedDoses: (keys: string[]) => void,
+  setSkippedDoses: (keys: string[]) => void,
+) {
+  setTakenDoses(doseRows
+    .filter(row => row.status === 'taken')
+    .map(row => localDoseKey(row))
+    .filter((key): key is string => key !== null));
+  setMissedDoses(doseRows
+    .filter(row => row.status === 'missed')
+    .map(row => localDoseKey(row))
+    .filter((key): key is string => key !== null));
+  setSkippedDoses(doseRows
+    .filter(row => row.status === 'skipped')
+    .map(row => localDoseKey(row))
+    .filter((key): key is string => key !== null));
+}
+
 // Wraps the app (see main.tsx) and holds the actual data.
 export function MedicationProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const [storedMedications, setStoredMedications] = useState<Medication[]>([]);
   const [takenDoses, setTakenDoses] = useState<string[]>([]);
+  const [missedDoses, setMissedDoses] = useState<string[]>([]);
+  const [skippedDoses, setSkippedDoses] = useState<string[]>([]);
   const [loadedForToken, setLoadedForToken] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<{ token: string; message: string } | null>(null);
   const loadVersion = useRef(0);
@@ -41,11 +86,11 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     let active = true;
     const version = ++loadVersion.current;
 
-    getMedications(accessToken)
-      .then(rows => {
+    Promise.all([getMedications(accessToken), getDoseLogs(accessToken)])
+      .then(([medicationRows, doseRows]) => {
         if (!active || version !== loadVersion.current) return;
-        setStoredMedications(rows.map(mapMedication));
-        setTakenDoses([]);
+        setStoredMedications(medicationRows.map(mapMedication));
+        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
         setLoadError(null);
         setLoadedForToken(accessToken);
       })
@@ -63,6 +108,18 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     };
   }, [accessToken]);
 
+  useEffect(() => {
+    if (!accessToken) return;
+    const interval = window.setInterval(() => {
+      void getDoseLogs(accessToken).then(doseRows => {
+        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+      }).catch(() => {
+        // The next reconciliation attempt will retry automatically.
+      });
+    }, 60_000);
+    return () => window.clearInterval(interval);
+  }, [accessToken]);
+
   const medications = loadedForToken === accessToken ? storedMedications : [];
   const loading = Boolean(accessToken) && loadedForToken !== accessToken;
   const error = loadError && loadError.token === accessToken ? loadError.message : '';
@@ -71,10 +128,13 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     if (!accessToken) return;
     const version = ++loadVersion.current;
     try {
-      const rows = await getMedications(accessToken);
+      const [rows, doseRows] = await Promise.all([
+        getMedications(accessToken),
+        getDoseLogs(accessToken),
+      ]);
       if (version !== loadVersion.current) return;
       setStoredMedications(rows.map(mapMedication));
-      setTakenDoses([]);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
       setLoadError(null);
       setLoadedForToken(accessToken);
     } catch (requestError: unknown) {
@@ -104,29 +164,84 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     await reloadMedications();
   }
 
+  async function updateMedication(medicationId: string, m: Omit<Medication, 'id'>) {
+    if (!accessToken) throw new Error('Sign in before updating a medication.');
+    await patchMedication(accessToken, medicationId, {
+      name: m.name,
+      dosage: m.dosage,
+      units_per_dose: m.tabletsPerIntake,
+      condition: m.condition,
+      quantity_remaining: m.remaining,
+      low_quantity_alert: m.refillThreshold,
+      intake_times: m.intakeTimes,
+      notes: m.notes ?? null,
+    });
+    await reloadMedications();
+  }
+
   // Records a dose as taken and lowers that medication's remaining tablets.
   // Does nothing if the dose was already marked taken.
-  const markDoseTaken = (medicationId: string, time: string) => {
+  const markDoseTaken = async (medicationId: string, time: string) => {
     const key = `${medicationId}|${time}`;
-    if (takenDoses.includes(key)) return; // already taken
-    setTakenDoses(prev => [...prev, key]);
-    setStoredMedications(prev =>
-      prev.map(m =>
-        m.id === medicationId
-          ? { ...m, remaining: Math.max(0, m.remaining - m.tabletsPerIntake) }
-          : m
-      )
-    );
+    if (!accessToken || takenDoses.includes(key) || missedDoses.includes(key) || skippedDoses.includes(key)) return;
+
+    const now = new Date();
+    const [hours, minutes] = time.split(':').map(Number);
+    const scheduledFor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+    try {
+      await createDoseLog(accessToken, {
+        medication_id: medicationId,
+        scheduled_for: scheduledFor.toISOString(),
+        status: 'taken',
+      });
+      await reloadMedications();
+      const doseRows = await getDoseLogs(accessToken);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+    } catch (requestError: unknown) {
+      setLoadError({
+        token: accessToken,
+        message: requestError instanceof Error ? requestError.message : 'Could not record this dose.',
+      });
+    }
+  };
+
+  const markDoseSkipped = async (medicationId: string, time: string) => {
+    const key = `${medicationId}|${time}`;
+    if (!accessToken || takenDoses.includes(key) || skippedDoses.includes(key) || missedDoses.includes(key)) return;
+
+    const now = new Date();
+    const [hours, minutes] = time.split(':').map(Number);
+    const scheduledFor = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+
+    try {
+      await createDoseLog(accessToken, {
+        medication_id: medicationId,
+        scheduled_for: scheduledFor.toISOString(),
+        status: 'skipped',
+      });
+      const doseRows = await getDoseLogs(accessToken);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+    } catch (requestError: unknown) {
+      setLoadError({
+        token: accessToken,
+        message: requestError instanceof Error ? requestError.message : 'Could not skip this dose.',
+      });
+    }
   };
 
   const contextValue: MedicationContextValue = {
     medications,
     takenDoses,
+    missedDoses,
+    skippedDoses,
     loading,
     error,
     reloadMedications,
     addMedication,
+    updateMedication,
     markDoseTaken,
+    markDoseSkipped,
   };
 
   return (

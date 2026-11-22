@@ -2,12 +2,22 @@
 // and a "Today's Schedule" section where doses can be ticked off as taken.
 
 import { Link } from 'react-router-dom';
-import { Plus, ChevronRight, Check } from 'lucide-react';
+import { Plus, Check, X } from 'lucide-react';
 import { useMedications } from '../context/useMedications';
 import { formatTime, getTodaysDoses } from '../utils/schedule';
 
 export default function MedicationsPage() {
-  const { medications, takenDoses, markDoseTaken, loading, error, reloadMedications } = useMedications();
+  const {
+    medications,
+    takenDoses,
+    missedDoses,
+    skippedDoses,
+    markDoseTaken,
+    markDoseSkipped,
+    loading,
+    error,
+    reloadMedications,
+  } = useMedications();
   const doses = getTodaysDoses(medications);
 
   return (
@@ -49,18 +59,19 @@ export default function MedicationsPage() {
           <thead className="text-sm text-slate-600">
             <tr>
               <th scope="col" className="p-3">Medication</th>
-              <th scope="col">Dosage</th>
+              <th scope="col">Tablets</th>
               <th scope="col">Next Intake</th>
               <th scope="col">Remaining</th>
               <th scope="col">Refill Status</th>
               <th scope="col">Condition</th>
+              <th scope="col">Notes</th>
               <th scope="col"><span className="sr-only">Actions</span></th>
             </tr>
           </thead>
           <tbody>
             {!loading && medications.length === 0 && (
               <tr className="border-t border-slate-100">
-                <td colSpan={7} className="p-4 text-slate-600">No medications have been added to your account yet.</td>
+                <td colSpan={8} className="p-4 text-slate-600">No medications have been added to your account yet.</td>
               </tr>
             )}
             {medications.map(m => {
@@ -69,7 +80,6 @@ export default function MedicationsPage() {
               const perDay = m.tabletsPerIntake * Math.max(1, m.intakeTimes.length);
               const daysLeft = Math.floor(m.remaining / perDay);
               const nextTime = m.intakeTimes.find(t => !takenDoses.includes(`${m.id}|${t}`));
-              const frequency = m.intakeTimes.length === 1 ? 'daily' : `${m.intakeTimes.length}x daily`;
 
               return (
                 <tr key={m.id} className="border-t border-slate-100">
@@ -78,7 +88,6 @@ export default function MedicationsPage() {
                   </th>
                   <td>
                     {m.tabletsPerIntake} {m.tabletsPerIntake === 1 ? 'tablet' : 'tablets'}
-                    <span className="text-slate-500"> ({frequency})</span>
                   </td>
                   <td>{nextTime ? formatTime(nextTime) : 'Done today'}</td>
                   <td>{m.remaining} tablets</td>
@@ -92,8 +101,16 @@ export default function MedicationsPage() {
                     </span>
                   </td>
                   <td>{m.condition}</td>
+                  <td className="max-w-48 text-sm text-slate-600">
+                    {m.notes || '—'}
+                  </td>
                   <td>
-                    <ChevronRight aria-hidden="true" />
+                    <Link
+                      to={`/medications/${m.id}/edit`}
+                      className="mr-3 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-blue-700 hover:bg-slate-50"
+                    >
+                      Edit
+                    </Link>
                   </td>
                 </tr>
               );
@@ -106,7 +123,8 @@ export default function MedicationsPage() {
       <section className="mt-6 rounded-xl border border-slate-200 bg-white p-4">
         <h2 className="mb-3 text-lg font-semibold text-blue-900">Today's Schedule</h2>
         <p className="mb-3 text-sm text-slate-500">
-          Dose check-offs are currently temporary and are not saved to the database.
+          If you took a medication, check it off within 1 hour of its scheduled time.
+          Otherwise, it will be recorded as missed in your history.
         </p>
         {doses.length === 0 ? (
           <p className="text-slate-500">No medications scheduled today.</p>
@@ -114,6 +132,15 @@ export default function MedicationsPage() {
           <ul className="grid gap-3 md:grid-cols-3">
             {doses.map(d => {
               const taken = takenDoses.includes(d.key);
+              const skipped = skippedDoses.includes(d.key);
+              const persistedMissed = missedDoses.includes(d.key);
+              const [hours, minutes] = d.time.split(':').map(Number);
+              const scheduledMinutes = hours * 60 + minutes;
+              const now = new Date();
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              const missed = persistedMissed || (
+                !taken && !skipped && nowMinutes > scheduledMinutes + 60
+              );
               return (
                 <li
                   key={d.key}
@@ -124,6 +151,8 @@ export default function MedicationsPage() {
                     <p className="text-sm text-slate-600">
                       {d.medication.name} {d.medication.dosage}
                     </p>
+                    {missed && <p className="mt-1 text-xs font-semibold text-red-700">Missed</p>}
+                    {skipped && <p className="mt-1 text-xs font-semibold text-amber-700">Skipped</p>}
                   </div>
                   {taken ? (
                     <span
@@ -132,13 +161,39 @@ export default function MedicationsPage() {
                     >
                       <Check size={18} />
                     </span>
+                  ) : missed ? (
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white"
+                      aria-label="Missed"
+                      title="Recorded as missed"
+                    >
+                      <X size={18} />
+                    </span>
+                  ) : skipped ? (
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-white"
+                      aria-label="Skipped"
+                      title="Recorded as skipped"
+                    >
+                      <X size={18} />
+                    </span>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => markDoseTaken(d.medication.id, d.time)}
-                      aria-label={`Mark ${d.medication.name} at ${formatTime(d.time)} as taken`}
-                      className="h-9 w-9 rounded-full border-2 border-slate-300 hover:border-blue-600"
-                    />
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void markDoseTaken(d.medication.id, d.time)}
+                        aria-label={`Mark ${d.medication.name} at ${formatTime(d.time)} as taken`}
+                        className="h-9 w-9 rounded-full border-2 border-slate-300 hover:border-blue-600"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => void markDoseSkipped(d.medication.id, d.time)}
+                        aria-label={`Mark ${d.medication.name} at ${formatTime(d.time)} as skipped`}
+                        className="text-xs font-medium text-amber-700 hover:underline"
+                      >
+                        Skip
+                      </button>
+                    </div>
                   )}
                 </li>
               );

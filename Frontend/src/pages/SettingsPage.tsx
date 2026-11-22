@@ -1,11 +1,13 @@
-// Settings page: profile details, notification switches, and the text size option.
+  // Settings page: profile details, notification switches, and the text size option.
 // Text size works for real (it scales the whole app). The rest only updates local
 // state for now, with TODO notes where teammates will connect the backend.
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { applyTextSize, getSavedTextSize } from '../utils/textSize';
 import type { TextSize } from '../utils/textSize';
+import { useAuth } from '../context/useAuth';
+import { getProfile, updateProfile } from '../utils/api';
 
 interface ToggleProps {
   id: string;
@@ -69,9 +71,11 @@ const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-3 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200';
 
 export default function SettingsPage() {
-  // TODO (team): load these from the backend once user accounts exist
-  const [name, setName] = useState('Jane Doe');
-  const [email, setEmail] = useState('jane.doe@example.com');
+  const { session } = useAuth();
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState('');
 
   const [doseReminders, setDoseReminders] = useState(true);
   const [refillAlerts, setRefillAlerts] = useState(true);
@@ -79,6 +83,29 @@ export default function SettingsPage() {
 
   const [textSize, setTextSize] = useState<TextSize>(getSavedTextSize());
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!session?.access_token) return;
+    let active = true;
+    setProfileLoading(true);
+    setProfileError('');
+    getProfile(session.access_token)
+      .then(profile => {
+        if (!active) return;
+        setName(profile.full_name);
+        setEmail(profile.email ?? session.user.email ?? '');
+      })
+      .catch((error: unknown) => {
+        if (active) setProfileError(error instanceof Error ? error.message : 'Could not load your profile.');
+      })
+      .finally(() => {
+        if (active) setProfileLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [session]);
 
   // Updates the selected option and applies it right away so the user sees the effect.
   function changeTextSize(size: TextSize) {
@@ -87,10 +114,24 @@ export default function SettingsPage() {
   }
 
   // Shows a "saved" message for 3 seconds.
-  function handleSave() {
-    // TODO (team): send name, email and notification choices to the API
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  async function handleSave() {
+    if (!session?.access_token) return;
+    if (!name.trim()) {
+      setProfileError('Full name is required.');
+      return;
+    }
+    setSaving(true);
+    setProfileError('');
+    try {
+      const profile = await updateProfile(session.access_token, name);
+      setName(profile.full_name);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (error: unknown) {
+      setProfileError(error instanceof Error ? error.message : 'Could not save your profile.');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
@@ -98,6 +139,8 @@ export default function SettingsPage() {
       <h1 className="mb-4 text-2xl font-bold text-blue-900">Settings</h1>
 
       <Section title="Profile">
+        {profileLoading && <p role="status" className="mb-3 text-sm text-slate-500">Loading profile…</p>}
+        {profileError && <p role="alert" className="mb-3 text-sm text-red-700">{profileError}</p>}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
             <label htmlFor="fullName" className="mb-1 block text-sm font-semibold text-slate-700">
@@ -119,7 +162,8 @@ export default function SettingsPage() {
               type="email"
               className={inputClass}
               value={email}
-              onChange={e => setEmail(e.target.value)}
+              readOnly
+              disabled
             />
           </div>
         </div>
@@ -186,10 +230,11 @@ export default function SettingsPage() {
       <div className="flex items-center gap-4">
         <button
           type="button"
-          onClick={handleSave}
+          onClick={() => void handleSave()}
+          disabled={saving || profileLoading}
           className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
         >
-          Save changes
+          {saving ? 'Saving…' : 'Save changes'}
         </button>
         {saved && (
           <p role="status" className="font-medium text-green-700">
