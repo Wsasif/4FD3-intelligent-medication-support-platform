@@ -41,11 +41,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!session?.access_token) {
-      setProfileLoading(false);
       return;
     }
     let active = true;
-    setProfileLoading(true);
     getProfile(session.access_token)
       .then(profile => {
         if (active) {
@@ -64,7 +62,8 @@ export default function DashboardPage() {
   }, [session?.access_token]);
 
   const emailName = session?.user.email?.split('@')[0];
-  const displayName = profileName.trim() || (!profileLoading ? emailName || 'there' : '');
+  const isProfileLoading = Boolean(session?.access_token) && profileLoading;
+  const displayName = profileName.trim() || (!isProfileLoading ? emailName || 'there' : '');
 
   // Numbers used by the summary cards
   const doses = getTodaysDoses(medications);
@@ -78,7 +77,7 @@ export default function DashboardPage() {
   return (
     <div>
       <h1 className="mb-1 text-2xl font-bold text-blue-900">
-        {profileLoading ? 'Welcome back' : `Welcome back, ${displayName}`}
+        {isProfileLoading ? 'Welcome back' : `Welcome back, ${displayName}`}
       </h1>
       <p className="mb-5 text-slate-600">Here is your medication summary for today.</p>
 

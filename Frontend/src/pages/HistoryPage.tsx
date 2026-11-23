@@ -27,8 +27,6 @@ export default function HistoryPage() {
   useEffect(() => {
     if (!session?.access_token) return;
     let active = true;
-    setLoading(true);
-    setError('');
 
     getDoseLogs(session.access_token)
       .then((logs: ApiDoseLog[]) => {
@@ -61,6 +59,8 @@ export default function HistoryPage() {
       active = false;
     };
   }, [session?.access_token]);
+
+  const isLoading = Boolean(session?.access_token) && loading;
 
   // Apply both filters, then sort with the newest records first
   const filteredRows = rows
@@ -108,7 +108,7 @@ export default function HistoryPage() {
         </p>
       </div>
 
-      {loading && <p role="status" className="mb-4 text-slate-600">Loading medication history…</p>}
+      {isLoading && <p role="status" className="mb-4 text-slate-600">Loading medication history…</p>}
       {error && <p role="alert" className="mb-4 rounded-lg bg-red-50 p-3 text-red-800">{error}</p>}
 
       <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
@@ -123,7 +123,7 @@ export default function HistoryPage() {
             </tr>
           </thead>
           <tbody>
-            {!loading && filteredRows.length === 0 && (
+            {!isLoading && filteredRows.length === 0 && (
               <tr>
                 <td colSpan={4} className="p-4 text-slate-500">
                   No records match these filters.

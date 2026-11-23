@@ -88,8 +88,6 @@ export default function SettingsPage() {
   useEffect(() => {
     if (!session?.access_token) return;
     let active = true;
-    setProfileLoading(true);
-    setProfileError('');
     getProfile(session.access_token)
       .then(profile => {
         if (!active) return;
@@ -106,6 +104,8 @@ export default function SettingsPage() {
       active = false;
     };
   }, [session]);
+
+  const isProfileLoading = Boolean(session?.access_token) && profileLoading;
 
   // Updates the selected option and applies it right away so the user sees the effect.
   function changeTextSize(size: TextSize) {
@@ -139,7 +139,7 @@ export default function SettingsPage() {
       <h1 className="mb-4 text-2xl font-bold text-blue-900">Settings</h1>
 
       <Section title="Profile">
-        {profileLoading && <p role="status" className="mb-3 text-sm text-slate-500">Loading profile…</p>}
+        {isProfileLoading && <p role="status" className="mb-3 text-sm text-slate-500">Loading profile…</p>}
         {profileError && <p role="alert" className="mb-3 text-sm text-red-700">{profileError}</p>}
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -231,7 +231,7 @@ export default function SettingsPage() {
         <button
           type="button"
           onClick={() => void handleSave()}
-          disabled={saving || profileLoading}
+          disabled={saving || isProfileLoading}
           className="rounded-lg bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-700"
         >
           {saving ? 'Saving…' : 'Save changes'}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMedications } from '../context/useMedications';
@@ -23,18 +23,6 @@ export default function EditMedicationPage() {
   const [notes, setNotes] = useState(medication?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    if (!medication) return;
-    setName(medication.name);
-    setDosage(medication.dosage);
-    setCondition(medication.condition);
-    setRemaining(String(medication.remaining));
-    setTabletsPerIntake(String(medication.tabletsPerIntake));
-    setRefillThreshold(String(medication.refillThreshold));
-    setIntakeTimes(medication.intakeTimes);
-    setNotes(medication.notes ?? '');
-  }, [medication]);
 
   if (!medication) {
     return (
