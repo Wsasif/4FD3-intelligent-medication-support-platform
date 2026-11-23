@@ -14,7 +14,12 @@ class Settings(BaseSettings):
     app_name: str = "Intelligent Medication Support Platform API"
     database_url: str                                   # required: Supabase Session pooler URI
     supabase_url: str                                   # base project URL, used for token checks
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"] # Vite dev server
+    cors_origins: list[str] = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+    ]  # Vite dev server
 
 
 @lru_cache
