@@ -13,6 +13,7 @@ import HistoryPage from './pages/HistoryPage';
 import PharmaciesPage from './pages/PharmaciesPage';
 import AlertsPage from './pages/AlertsPage';
 import SettingsPage from './pages/SettingsPage';
+import EditMedicationPage from './pages/EditMedicationPage';
 
 function RequireAuth() {
   const { session, loading } = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/medications" element={<MedicationsPage />} />
           <Route path="/medications/new" element={<AddMedicationPage />} />
+          <Route path="/medications/:medicationId/edit" element={<EditMedicationPage />} />
           <Route path="/history" element={<HistoryPage />} />
           <Route path="/pharmacies" element={<PharmaciesPage />} />
           <Route path="/alerts" element={<AlertsPage />} />

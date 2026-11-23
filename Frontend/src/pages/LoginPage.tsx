@@ -7,6 +7,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { session, loading, configured, error: sessionError, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<'sign-in' | 'sign-up'>('sign-in');
+  const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [requestError, setRequestError] = useState('');
@@ -26,7 +27,8 @@ export default function LoginPage() {
       if (mode === 'sign-in') {
         await signIn(email, password);
       } else {
-        const signedIn = await signUp(email, password);
+        if (!fullName.trim()) throw new Error('Full name is required.');
+        const signedIn = await signUp(email, password, fullName);
         if (!signedIn) setNotice('Account created. Check your email to confirm it, then sign in.');
       }
     } catch (error: unknown) {
@@ -38,7 +40,8 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 p-6">
-      <section className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+      <a className="skip-link" href="#login-form">Skip to login form</a>
+      <section id="login-form" className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-8 shadow-sm" tabIndex={-1}>
         <h1 className="mb-2 text-2xl font-bold text-blue-900">
           {mode === 'sign-in' ? 'Sign in' : 'Create your account'}
         </h1>
@@ -54,6 +57,19 @@ export default function LoginPage() {
         {sessionError && <p role="alert" className="mb-4 text-sm text-red-700">{sessionError}</p>}
 
         <form onSubmit={submit} className="space-y-4">
+          {mode === 'sign-up' && (
+            <label className="block text-sm font-medium text-slate-700">
+              Full name
+              <input
+                type="text"
+                autoComplete="name"
+                required
+                value={fullName}
+                onChange={event => setFullName(event.target.value)}
+                className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
+              />
+            </label>
+          )}
           <label className="block text-sm font-medium text-slate-700">
             Email
             <input
@@ -62,6 +78,8 @@ export default function LoginPage() {
               required
               value={email}
               onChange={event => setEmail(event.target.value)}
+              aria-invalid={Boolean(requestError)}
+              aria-describedby={requestError ? 'authentication-error' : undefined}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
             />
           </label>
@@ -74,10 +92,12 @@ export default function LoginPage() {
               required
               value={password}
               onChange={event => setPassword(event.target.value)}
+              aria-invalid={Boolean(requestError)}
+              aria-describedby={requestError ? 'authentication-error' : undefined}
               className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-3"
             />
           </label>
-          {requestError && <p role="alert" className="text-sm text-red-700">{requestError}</p>}
+          {requestError && <p id="authentication-error" role="alert" className="text-sm text-red-700">{requestError}</p>}
           {notice && <p role="status" className="text-sm text-green-700">{notice}</p>}
           <button
             type="submit"

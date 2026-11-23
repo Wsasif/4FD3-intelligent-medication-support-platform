@@ -32,7 +32,7 @@ const emptyForm: FormState = {
   remaining: '',
   intakeTimes: [],
   tabletsPerIntake: '1',
-  refillThreshold: '5',
+  refillThreshold: '',
   notes: '',
 };
 
@@ -60,7 +60,7 @@ function Field({ label, htmlFor, required, error, children }: FieldProps) {
       </label>
       {children}
       {error && (
-        <p role="alert" className="mt-1 text-sm text-red-600">
+        <p id={`${htmlFor}-error`} role="alert" className="mt-1 text-sm text-red-600">
           {error}
         </p>
       )}
@@ -122,6 +122,9 @@ export default function AddMedicationPage() {
       if (!/^[1-9]\d*$/.test(form.tabletsPerIntake.trim())) {
         e.tabletsPerIntake = 'Enter a number of 1 or more.';
       }
+      if (!form.refillThreshold) {
+        e.refillThreshold = 'Select a refill alert threshold.';
+      }
     }
 
     setErrors(e);
@@ -177,14 +180,14 @@ export default function AddMedicationPage() {
           aria-label="Back to medications"
           className="rounded-lg p-2 hover:bg-slate-100"
         >
-          <ArrowLeft />
+          <ArrowLeft aria-hidden="true" />
         </button>
         <h1 className="text-2xl font-bold text-blue-900">Add Medication</h1>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white p-6">
         {/* Step indicator: numbered circles, finished steps show a check mark */}
-        <ol className="mb-8 flex items-center gap-4" aria-label="Progress">
+        <ol className="mb-8 flex items-center gap-4" aria-label="Medication setup progress">
           {stepLabels.map((label, i) => {
             const number = i + 1;
             const active = number === step;
@@ -213,6 +216,10 @@ export default function AddMedicationPage() {
             <Field label="Medication name" htmlFor="name" required error={errors.name}>
               <input
                 id="name"
+                name="name"
+                required
+                aria-invalid={Boolean(errors.name)}
+                aria-describedby={errors.name ? 'name-error' : undefined}
                 className={inputClass}
                 placeholder="e.g. Lisinopril"
                 value={form.name}
@@ -223,6 +230,10 @@ export default function AddMedicationPage() {
             <Field label="Dosage" htmlFor="dosage" required error={errors.dosage}>
               <input
                 id="dosage"
+                name="dosage"
+                required
+                aria-invalid={Boolean(errors.dosage)}
+                aria-describedby={errors.dosage ? 'dosage-error' : undefined}
                 className={inputClass}
                 placeholder="e.g. 10 mg"
                 value={form.dosage}
@@ -233,6 +244,10 @@ export default function AddMedicationPage() {
             <Field label="Disease / Condition" htmlFor="condition" required error={errors.condition}>
               <input
                 id="condition"
+                name="condition"
+                required
+                aria-invalid={Boolean(errors.condition)}
+                aria-describedby={errors.condition ? 'condition-error' : undefined}
                 className={inputClass}
                 placeholder="e.g. High Blood Pressure"
                 value={form.condition}
@@ -243,8 +258,12 @@ export default function AddMedicationPage() {
             <Field label="Quantity remaining" htmlFor="remaining" required error={errors.remaining}>
               <input
                 id="remaining"
+                name="remaining"
                 type="number"
                 min={0}
+                required
+                aria-invalid={Boolean(errors.remaining)}
+                aria-describedby={errors.remaining ? 'remaining-error' : undefined}
                 className={inputClass}
                 placeholder="e.g. 30 tablets"
                 value={form.remaining}
@@ -262,7 +281,10 @@ export default function AddMedicationPage() {
                 <div className="flex gap-2">
                   <input
                     id="newTime"
+                    name="newTime"
                     type="time"
+                    aria-invalid={Boolean(errors.intakeTimes)}
+                    aria-describedby={errors.intakeTimes ? 'newTime-error' : undefined}
                     className={inputClass}
                     value={newTime}
                     onChange={e => setNewTime(e.target.value)}
@@ -283,7 +305,7 @@ export default function AddMedicationPage() {
                     <li key={t} className="flex items-center gap-1 rounded-full bg-sky-100 px-3 py-1 text-sm">
                       {t}
                       <button type="button" onClick={() => removeTime(t)} aria-label={`Remove ${t}`}>
-                        <X size={14} />
+                        <X size={14} aria-hidden="true" />
                       </button>
                     </li>
                   ))}
@@ -294,21 +316,32 @@ export default function AddMedicationPage() {
             <Field label="Tablets per intake" htmlFor="tabletsPerIntake" required error={errors.tabletsPerIntake}>
               <input
                 id="tabletsPerIntake"
+                name="tabletsPerIntake"
                 type="number"
                 min={1}
+                required
+                aria-invalid={Boolean(errors.tabletsPerIntake)}
+                aria-describedby={errors.tabletsPerIntake ? 'tabletsPerIntake-error' : undefined}
                 className={inputClass}
                 value={form.tabletsPerIntake}
                 onChange={e => update('tabletsPerIntake', e.target.value)}
               />
             </Field>
 
-            <Field label="Low-quantity alert threshold" htmlFor="refillThreshold">
+            <Field
+              label="Low-quantity alert threshold"
+              htmlFor="refillThreshold"
+              required
+              error={errors.refillThreshold}
+            >
               <select
                 id="refillThreshold"
+                name="refillThreshold"
                 className={inputClass}
                 value={form.refillThreshold}
                 onChange={e => update('refillThreshold', e.target.value)}
               >
+                <option value="">Select a threshold</option>
                 {[3, 5, 7, 10, 14].map(n => (
                   <option key={n} value={n}>
                     Alert when below {n} tablets
@@ -320,6 +353,7 @@ export default function AddMedicationPage() {
             <Field label="Notes (optional)" htmlFor="notes">
               <textarea
                 id="notes"
+                name="notes"
                 rows={3}
                 className={inputClass}
                 placeholder="e.g. Take with food"

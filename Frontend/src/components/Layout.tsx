@@ -1,8 +1,8 @@
 // The frame shared by every page: sidebar navigation on the left,
 // header bar on top, and the current page rendered in the middle (<Outlet />).
 
-import { useEffect, useState } from 'react';
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { LayoutDashboard, Pill, History, MapPin, Bell, Settings, HeartPulse, RefreshCw } from 'lucide-react';
 import { useAuth } from '../context/useAuth';
 import { API_BASE_URL, checkApiHealth } from '../utils/api';
@@ -19,6 +19,8 @@ const links = [
 
 export default function Layout() {
   const { session, signOut } = useAuth();
+  const location = useLocation();
+  const mainRef = useRef<HTMLElement>(null);
   const [apiState, setApiState] = useState<'checking' | 'connected' | 'unavailable'>('checking');
   const [apiError, setApiError] = useState('');
   const [retryCount, setRetryCount] = useState(0);
@@ -50,11 +52,32 @@ export default function Layout() {
     return () => controller.abort();
   }, [retryCount]);
 
+  useEffect(() => {
+    const pageNames: Record<string, string> = {
+      '/dashboard': 'Dashboard',
+      '/medications': 'My Medications',
+      '/medications/new': 'Add Medication',
+      '/history': 'Medication History',
+      '/pharmacies': 'Find a Pharmacy',
+      '/alerts': 'Medication Alerts and Reminders',
+      '/settings': 'Settings',
+    };
+    const pageName = pageNames[location.pathname] ?? 'MedTrack';
+    document.title = `${pageName} - MedTrack`;
+
+    const heading = mainRef.current?.querySelector<HTMLElement>('h1');
+    if (heading) {
+      heading.setAttribute('tabindex', '-1');
+      heading.focus();
+    }
+  }, [location.pathname]);
+
   return (
     <div className="flex min-h-screen">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="w-60 shrink-0 border-r border-slate-200 bg-white p-4">
         <div className="mb-6 flex items-center gap-2 text-sm font-semibold text-blue-900">
-          <HeartPulse className="text-blue-600" />
+          <HeartPulse className="text-blue-600" aria-hidden="true" />
           Patient Health Monitoring and Clinical Decision-Support Platform
         </div>
         <nav aria-label="Main navigation" className="flex flex-col gap-1">
@@ -68,7 +91,7 @@ export default function Layout() {
                   isActive ? 'bg-sky-100 text-blue-900' : 'text-slate-600 hover:bg-slate-100'
                 }`}
             >
-              <Icon size={20} /> {label}
+              <Icon size={20} aria-hidden="true" /> {label}
             </NavLink>
           ))}
         </nav>
@@ -101,12 +124,14 @@ export default function Layout() {
                 aria-label={`Retry backend connection. ${apiError}`}
                 title={`Retry connection to ${API_BASE_URL}`}
               >
-                <RefreshCw size={16} />
+                <RefreshCw size={16} aria-hidden="true" />
               </button>
             )}
           </div>
           {signOutError && <span role="alert" className="text-sm text-red-700">{signOutError}</span>}
-          <button type="button" aria-label="Notifications"><Bell /></button>
+          <button type="button" aria-label="Notifications (no new notifications)">
+            <Bell aria-hidden="true" />
+          </button>
           <div className="flex items-center gap-2">
             <div className="h-9 w-9 rounded-full bg-slate-300" />
             <span className="font-medium">{session?.user.email}</span>
@@ -119,7 +144,9 @@ export default function Layout() {
             </button>
           </div>
         </header>
-        <main className="p-6"><Outlet /></main>
+        <main id="main-content" ref={mainRef} className="p-6" tabIndex={-1}>
+          <Outlet />
+        </main>
       </div>
     </div>
   );

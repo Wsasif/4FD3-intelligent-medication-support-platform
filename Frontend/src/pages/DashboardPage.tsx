@@ -1,10 +1,13 @@
 // Dashboard page: a quick summary of today. Shows counts (medications, doses taken,
 // alerts, refills), the next dose, and a short list of things needing attention.
 
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMedications } from '../context/useMedications';
+import { useAuth } from '../context/useAuth';
 import { getInteractionAlerts, getRefillAlerts } from '../utils/alerts';
 import { formatTime, getNextDose, getTodaysDoses } from '../utils/schedule';
+import { getProfile } from '../utils/api';
 
 interface StatCardProps {
   label: string;
@@ -19,6 +22,7 @@ function StatCard({ label, value, to, warn }: StatCardProps) {
   return (
     <Link
       to={to}
+      aria-label={`${label}: ${value}${warn ? ', attention needed' : ''}`}
       className={`rounded-xl border p-5 hover:shadow ${
         warn ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'
       }`}
@@ -31,6 +35,36 @@ function StatCard({ label, value, to, warn }: StatCardProps) {
 
 export default function DashboardPage() {
   const { medications, takenDoses } = useMedications();
+  const { session } = useAuth();
+  const [profileName, setProfileName] = useState('');
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  useEffect(() => {
+    if (!session?.access_token) {
+      setProfileLoading(false);
+      return;
+    }
+    let active = true;
+    setProfileLoading(true);
+    getProfile(session.access_token)
+      .then(profile => {
+        if (active) {
+          setProfileName(profile.full_name);
+          setProfileLoading(false);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setProfileLoading(false);
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [session?.access_token]);
+
+  const emailName = session?.user.email?.split('@')[0];
+  const displayName = profileName.trim() || (!profileLoading ? emailName || 'there' : '');
 
   // Numbers used by the summary cards
   const doses = getTodaysDoses(medications);
@@ -43,8 +77,9 @@ export default function DashboardPage() {
 
   return (
     <div>
-      {/* The name is hard-coded for now, it will come from the logged-in user later */}
-      <h1 className="mb-1 text-2xl font-bold text-blue-900">Welcome back, Jane</h1>
+      <h1 className="mb-1 text-2xl font-bold text-blue-900">
+        {profileLoading ? 'Welcome back' : `Welcome back, ${displayName}`}
+      </h1>
       <p className="mb-5 text-slate-600">Here is your medication summary for today.</p>
 
       <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

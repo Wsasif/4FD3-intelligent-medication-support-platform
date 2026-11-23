@@ -7,7 +7,7 @@ export interface AuthContextValue {
   configured: boolean;
   error: string;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<boolean>;
+  signUp: (email: string, password: string, fullName: string) => Promise<boolean>;
   signOut: () => Promise<void>;
 }
 
