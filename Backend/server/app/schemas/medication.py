@@ -13,7 +13,7 @@ class MedicationBase(BaseModel):
     quantity_remaining: float = Field(default=0, ge=0, le=999999)  # tablets on hand
     refill_alert_days: int = Field(default=7, ge=1, le=60)
     is_as_needed: bool = False                                     # no fixed schedule
-    low_quantity_alert: float = Field(gt=0, le=999999)
+    low_quantity_alert: float = Field(default=5, gt=0, le=999999)
     drug_id: int | None = None          # from GET /drugs/search; needed for interaction checks
     pharmacy_id: UUID | None = None
     start_date: date | None = None
@@ -63,6 +63,3 @@ class MedicationUpdate(BaseModel):
     notes: str | None = None
     is_active: bool | None = None          # false = stop taking it, keep the history
     intake_times: list[time] | None = None
-
-
-    
