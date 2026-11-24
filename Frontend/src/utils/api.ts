@@ -1,3 +1,5 @@
+import type { Frequency } from '../types';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://127.0.0.1:8000';
 
 export interface ApiMedication {
@@ -12,6 +14,10 @@ export interface ApiMedication {
   notes: string | null;
   drug_id: number | null;
   drug_name: string | null;
+  frequency: Frequency;
+  repeat_every: number;
+  days_of_week: number[];
+  start_date: string | null;
 }
 
 export interface CreateMedicationRequest {
@@ -26,6 +32,10 @@ export interface CreateMedicationRequest {
   pharmacy_id: null;
   drug_id: number | null;
   notes: string | null;
+  frequency: Frequency;
+  repeat_every: number;
+  days_of_week: number[];
+  start_date: string | null;
 }
 
 export interface ApiDoseLog {
@@ -60,6 +70,10 @@ export interface UpdateMedicationRequest {
   intake_times?: string[];
   drug_id?: number | null;
   notes?: string | null;
+  frequency?: Frequency;
+  repeat_every?: number;
+  days_of_week?: number[];
+  start_date?: string | null;
 }
 
 // ---------- Drug search and interaction checks (DDInter 2.0) ----------

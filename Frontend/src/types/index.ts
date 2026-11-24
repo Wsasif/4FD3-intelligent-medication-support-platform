@@ -19,7 +19,15 @@ export interface Medication {
   notes?: string;
   drugId?: number | null;  // DDInter drug (needed for interaction checks)
   drugName?: string | null;
+  // How often it is taken (missing = every day). See utils/schedule.ts isDueOn.
+  frequency?: Frequency;
+  repeatEvery?: number;    // every N days / weeks / months
+  daysOfWeek?: number[];   // weekly only: 1 = Monday ... 7 = Sunday
+  startDate?: string | null; // "2026-11-23"; sets which days/weeks/months count
 }
+
+// Repeats daily, weekly (on chosen days) or monthly (on the start date's day).
+export type Frequency = 'daily' | 'weekly' | 'monthly';
 
 // A single alert: a dose reminder, a refill warning, or a drug interaction (DDI).
 export interface AlertItem {

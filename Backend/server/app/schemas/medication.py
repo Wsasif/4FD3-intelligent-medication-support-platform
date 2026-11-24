@@ -1,7 +1,11 @@
 from datetime import date, datetime, time
+from typing import Annotated, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
+
+Frequency = Literal["daily", "weekly", "monthly"]
+Weekday = Annotated[int, Field(ge=1, le=7)]   # ISO: 1 = Monday ... 7 = Sunday
 
 
 class MedicationBase(BaseModel):
@@ -19,6 +23,11 @@ class MedicationBase(BaseModel):
     start_date: date | None = None
     end_date: date | None = None
     notes: str | None = Field(default=None, max_length=1000)
+    # How often: every `repeat_every` days / weeks / months.
+    # weekly also needs days_of_week. See migration 003 for examples.
+    frequency: Frequency = "daily"
+    repeat_every: int = Field(default=1, ge=1, le=12)
+    days_of_week: list[Weekday] = Field(default_factory=list, examples=[[1, 3, 5]])
 
 
 class MedicationCreate(MedicationBase):
@@ -34,6 +43,14 @@ class MedicationCreate(MedicationBase):
             raise ValueError("as-needed medications have no intake_times")
         if not self.is_as_needed and not self.intake_times:
             raise ValueError("add at least one intake time, or set is_as_needed to true")
+        if self.frequency == "weekly":
+            if not self.days_of_week:
+                raise ValueError("weekly medications need at least one day in days_of_week")
+            self.days_of_week = sorted(set(self.days_of_week))
+        else:
+            self.days_of_week = []  # only used by weekly
+        if (self.repeat_every > 1 or self.frequency == "monthly") and self.start_date is None:
+            raise ValueError("start_date is needed for this frequency (it sets which days count)")
         return self
 
 
@@ -63,4 +80,7 @@ class MedicationUpdate(BaseModel):
     end_date: date | None = None
     notes: str | None = None
     is_active: bool | None = None          # false = stop taking it, keep the history
+    frequency: Frequency | None = None
+    repeat_every: int | None = None
+    days_of_week: list[Weekday] | None = None
     intake_times: list[time] | None = None

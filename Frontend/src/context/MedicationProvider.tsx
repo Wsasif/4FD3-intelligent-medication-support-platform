@@ -34,6 +34,10 @@ function mapMedication(row: Awaited<ReturnType<typeof getMedications>>[number]):
     notes: row.notes ?? undefined,
     drugId: row.drug_id,
     drugName: row.drug_name,
+    frequency: row.frequency ?? 'daily',
+    repeatEvery: row.repeat_every ?? 1,
+    daysOfWeek: row.days_of_week ?? [],
+    startDate: row.start_date,
   };
 }
 
@@ -198,6 +202,10 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       pharmacy_id: null,
       drug_id: m.drugId ?? null,
       notes: m.notes ?? null,
+      frequency: m.frequency ?? 'daily',
+      repeat_every: m.repeatEvery ?? 1,
+      days_of_week: m.daysOfWeek ?? [],
+      start_date: m.startDate ?? null,
     }, acknowledgeInteractions);
     await reloadMedications();
   }
@@ -218,6 +226,10 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       intake_times: m.intakeTimes,
       drug_id: m.drugId ?? null,
       notes: m.notes ?? null,
+      frequency: m.frequency ?? 'daily',
+      repeat_every: m.repeatEvery ?? 1,
+      days_of_week: m.daysOfWeek ?? [],
+      start_date: m.startDate ?? null,
     }, acknowledgeInteractions);
     await reloadMedications();
   }

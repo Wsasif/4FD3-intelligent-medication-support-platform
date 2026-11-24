@@ -7,7 +7,8 @@ from app.services.interactions import guard_major
 
 MED_COLUMNS = """id, name, dosage, units_per_dose, condition, quantity_remaining,
     refill_alert_days, is_as_needed, low_quantity_alert, drug_id, pharmacy_id,
-    start_date, end_date, notes, is_active, created_at"""
+    start_date, end_date, notes, is_active, created_at,
+    frequency, repeat_every, days_of_week"""
 
 
 class InvalidReference(Exception):
@@ -64,11 +65,13 @@ def create_medication(
         med = conn.execute(
             f"""INSERT INTO medications (user_id, name, dosage, units_per_dose, condition,
                     quantity_remaining, refill_alert_days, is_as_needed, low_quantity_alert,
-                    drug_id, pharmacy_id, start_date, end_date, notes)
+                    drug_id, pharmacy_id, start_date, end_date, notes,
+                    frequency, repeat_every, days_of_week)
                 VALUES (%(user_id)s, %(name)s, %(dosage)s, %(units_per_dose)s, %(condition)s,
                     %(quantity_remaining)s, %(refill_alert_days)s, %(is_as_needed)s,
                     %(low_quantity_alert)s, %(drug_id)s, %(pharmacy_id)s, %(start_date)s,
-                    %(end_date)s, %(notes)s)
+                    %(end_date)s, %(notes)s,
+                    %(frequency)s, %(repeat_every)s, %(days_of_week)s::smallint[])
                 RETURNING {MED_COLUMNS}""",
             {**data.model_dump(exclude={"intake_times"}), "user_id": user_id},
         ).fetchone()
@@ -135,7 +138,9 @@ def update_medication(
                     refill_alert_days = %(refill_alert_days)s, is_as_needed = %(is_as_needed)s,
                     low_quantity_alert = %(low_quantity_alert)s, drug_id = %(drug_id)s,
                     pharmacy_id = %(pharmacy_id)s, start_date = %(start_date)s,
-                    end_date = %(end_date)s, notes = %(notes)s, is_active = %(is_active)s
+                    end_date = %(end_date)s, notes = %(notes)s, is_active = %(is_active)s,
+                    frequency = %(frequency)s, repeat_every = %(repeat_every)s,
+                    days_of_week = %(days_of_week)s::smallint[]
                 WHERE id = %(id)s AND user_id = %(user_id)s
                 RETURNING {MED_COLUMNS}""",
             {**checked.model_dump(exclude={"intake_times"}),
