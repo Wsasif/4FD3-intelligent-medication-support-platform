@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { Medication } from '../types';
+import type { AlertItem, Medication } from '../types';
 
 export interface MedicationContextValue {
   medications: Medication[];
@@ -8,9 +8,14 @@ export interface MedicationContextValue {
   skippedDoses: string[];
   loading: boolean;
   error: string;
+  interactionAlerts: AlertItem[];   // from GET /interactions (DDInter)
   reloadMedications: () => Promise<void>;
-  addMedication: (m: Omit<Medication, 'id'>) => Promise<void>;
-  updateMedication: (medicationId: string, m: Omit<Medication, 'id'>) => Promise<void>;
+  addMedication: (m: Omit<Medication, 'id'>, acknowledgeInteractions?: boolean) => Promise<void>;
+  updateMedication: (
+    medicationId: string,
+    m: Omit<Medication, 'id'>,
+    acknowledgeInteractions?: boolean,
+  ) => Promise<void>;
   markDoseTaken: (medicationId: string, time: string) => Promise<void>;
   markDoseSkipped: (medicationId: string, time: string) => Promise<void>;
 }

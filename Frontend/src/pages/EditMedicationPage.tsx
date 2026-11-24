@@ -2,6 +2,10 @@ import { useState } from 'react';
 import { ArrowLeft, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMedications } from '../context/useMedications';
+import DrugPicker from '../components/DrugPicker';
+import InteractionReview from '../components/InteractionReview';
+import type { InteractionStatus } from '../components/InteractionReview';
+import type { ApiDrug } from '../utils/api';
 
 const inputClass =
   'w-full rounded-lg border border-slate-300 bg-white px-3 py-3 text-base focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-200';
@@ -23,6 +27,14 @@ export default function EditMedicationPage() {
   const [notes, setNotes] = useState(medication?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [drug, setDrug] = useState<ApiDrug | null>(
+    medication?.drugId != null
+      ? { id: medication.drugId, name: medication.drugName ?? `Drug #${medication.drugId}` }
+      : null,
+  );
+  const [interactionStatus, setInteractionStatus] = useState<InteractionStatus>({
+    ready: true, hasMajor: false, acknowledged: false,
+  });
 
   if (!medication) {
     return (
@@ -34,6 +46,12 @@ export default function EditMedicationPage() {
       </div>
     );
   }
+
+  // Only a newly linked drug is re-checked (the backend does the same).
+  const drugChanged = (drug?.id ?? null) !== (medication.drugId ?? null);
+  const checkNeeded = drugChanged && drug !== null;
+  const blockedByMajor = checkNeeded && interactionStatus.hasMajor && !interactionStatus.acknowledged;
+  const waitingForCheck = checkNeeded && !interactionStatus.ready;
 
   function addTime() {
     if (!newTime || intakeTimes.includes(newTime)) return;
@@ -60,6 +78,8 @@ export default function EditMedicationPage() {
       return;
     }
 
+    if (waitingForCheck || blockedByMajor) return;
+
     setSaving(true);
     setError('');
     try {
@@ -74,7 +94,8 @@ export default function EditMedicationPage() {
         pharmacyId: medication.pharmacyId,
         remindersOn: medication.remindersOn,
         notes: notes.trim() || undefined,
-      });
+        drugId: drug?.id ?? null,
+      }, checkNeeded && interactionStatus.acknowledged);
       navigate('/medications');
     } catch (saveError: unknown) {
       setError(saveError instanceof Error ? saveError.message : 'Could not update the medication.');
@@ -93,6 +114,23 @@ export default function EditMedicationPage() {
       </div>
 
       <div className="max-w-3xl rounded-xl border border-slate-200 bg-white p-6">
+        <div className="mb-5">
+          <label htmlFor="drugSearch" className="mb-1 block text-sm font-semibold text-slate-700">
+            Linked drug (for interaction checks)
+          </label>
+          <DrugPicker value={drug} onChange={setDrug} initialQuery={name} />
+          {checkNeeded && (
+            <div className="mt-3">
+              <InteractionReview
+                key={drug.id}
+                drugId={drug.id}
+                excludeMedicationId={medication.id}
+                onStatusChange={setInteractionStatus}
+              />
+            </div>
+          )}
+        </div>
+
         <div className="grid gap-5 md:grid-cols-2">
           <label className="text-sm font-semibold text-slate-700">
             Medication name
@@ -151,7 +189,7 @@ export default function EditMedicationPage() {
 
         <div className="mt-6 flex gap-3">
           <button type="button" onClick={() => navigate('/medications')} className="flex-1 rounded-lg bg-sky-100 px-5 py-3 font-semibold text-blue-800">Cancel</button>
-          <button type="button" onClick={() => void save()} disabled={saving} className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:opacity-50">
+          <button type="button" onClick={() => void save()} disabled={saving || waitingForCheck || blockedByMajor} className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white disabled:opacity-50">
             {saving ? 'Saving…' : 'Save changes'}
           </button>
         </div>

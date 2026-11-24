@@ -10,6 +10,8 @@ export interface ApiMedication {
   low_quantity_alert: number;
   intake_times: string[];
   notes: string | null;
+  drug_id: number | null;
+  drug_name: string | null;
 }
 
 export interface CreateMedicationRequest {
@@ -22,6 +24,7 @@ export interface CreateMedicationRequest {
   low_quantity_alert: number;
   intake_times: string[];
   pharmacy_id: null;
+  drug_id: number | null;
   notes: string | null;
 }
 
@@ -55,7 +58,70 @@ export interface UpdateMedicationRequest {
   quantity_remaining?: number;
   low_quantity_alert?: number;
   intake_times?: string[];
+  drug_id?: number | null;
   notes?: string | null;
+}
+
+// ---------- Drug search and interaction checks (DDInter 2.0) ----------
+
+export interface ApiDrug {
+  id: number;
+  name: string;
+}
+
+export type InteractionSeverity = 'major' | 'moderate' | 'minor' | 'unknown';
+
+export interface ApiInteraction {
+  medication_id: string;
+  medication_name: string;
+  drug_name: string;
+  severity: InteractionSeverity;
+  severity_label: string;
+  message: string;
+}
+
+export interface ApiUncheckedMedication {
+  medication_id: string;
+  medication_name: string;
+  message: string;
+}
+
+export interface ApiInteractionCheck {
+  drug_id: number;
+  drug_name: string;
+  interactions: ApiInteraction[];
+  has_major: boolean;
+  same_drug: ApiUncheckedMedication[];
+  unchecked: ApiUncheckedMedication[];
+  disclaimer: string;
+}
+
+export interface ApiInteractionPair {
+  medication_a_id: string;
+  medication_a_name: string;
+  medication_b_id: string;
+  medication_b_name: string;
+  severity: InteractionSeverity;
+  severity_label: string;
+  message: string;
+}
+
+export interface ApiInteractionList {
+  interactions: ApiInteractionPair[];
+  unchecked: ApiUncheckedMedication[];
+  disclaimer: string;
+}
+
+// Thrown for any failed request. status lets pages react to codes like 409.
+export class ApiError extends Error {
+  status: number;
+  detail: unknown;
+
+  constructor(message: string, status: number, detail: unknown) {
+    super(message);
+    this.status = status;
+    this.detail = detail;
+  }
 }
 
 async function requestApi<T>(path: string, accessToken: string, init?: RequestInit): Promise<T> {
@@ -71,12 +137,19 @@ async function requestApi<T>(path: string, accessToken: string, init?: RequestIn
   if (!response.ok) {
     const body = await response.text();
     let message = `Backend request failed (HTTP ${response.status}).`;
+    let detail: unknown = null;
     if (body) {
       try {
         const parsed: unknown = JSON.parse(body);
         if (typeof parsed === 'object' && parsed !== null && 'detail' in parsed) {
-          const detail = parsed.detail;
-          message = typeof detail === 'string' ? detail : JSON.stringify(detail);
+          detail = parsed.detail;
+          if (typeof detail === 'string') {
+            message = detail;
+          } else if (typeof detail === 'object' && detail !== null && 'message' in detail) {
+            message = String(detail.message);
+          } else {
+            message = JSON.stringify(detail);
+          }
         } else {
           message = body;
         }
@@ -84,7 +157,7 @@ async function requestApi<T>(path: string, accessToken: string, init?: RequestIn
         message = body;
       }
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status, detail);
   }
 
   return response.json() as Promise<T>;
@@ -111,11 +184,17 @@ export function getMedications(accessToken: string): Promise<ApiMedication[]> {
   return requestApi<ApiMedication[]>('/api/v1/medications', accessToken);
 }
 
+// acknowledgeInteractions: the user has seen a major interaction warning and still wants to save.
+function ackQuery(acknowledgeInteractions?: boolean): string {
+  return acknowledgeInteractions ? '?acknowledge_interactions=true' : '';
+}
+
 export function createMedication(
   accessToken: string,
   medication: CreateMedicationRequest,
+  acknowledgeInteractions?: boolean,
 ): Promise<ApiMedication> {
-  return requestApi<ApiMedication>('/api/v1/medications', accessToken, {
+  return requestApi<ApiMedication>(`/api/v1/medications${ackQuery(acknowledgeInteractions)}`, accessToken, {
     method: 'POST',
     body: JSON.stringify(medication),
   });
@@ -125,11 +204,39 @@ export function updateMedication(
   accessToken: string,
   medicationId: string,
   medication: UpdateMedicationRequest,
+  acknowledgeInteractions?: boolean,
 ): Promise<ApiMedication> {
-  return requestApi<ApiMedication>(`/api/v1/medications/${medicationId}`, accessToken, {
+  const path = `/api/v1/medications/${medicationId}${ackQuery(acknowledgeInteractions)}`;
+  return requestApi<ApiMedication>(path, accessToken, {
     method: 'PATCH',
     body: JSON.stringify(medication),
   });
+}
+
+export function searchDrugs(
+  accessToken: string,
+  query: string,
+  signal?: AbortSignal,
+): Promise<ApiDrug[]> {
+  const q = encodeURIComponent(query.trim());
+  return requestApi<ApiDrug[]>(`/api/v1/drugs/search?q=${q}&limit=8`, accessToken, { signal });
+}
+
+// Preview: does this drug interact with the user's active medications? Saves nothing.
+export function checkInteractions(
+  accessToken: string,
+  drugId: number,
+  excludeMedicationId?: string,
+): Promise<ApiInteractionCheck> {
+  return requestApi<ApiInteractionCheck>('/api/v1/interactions/check', accessToken, {
+    method: 'POST',
+    body: JSON.stringify({ drug_id: drugId, exclude_medication_id: excludeMedicationId ?? null }),
+  });
+}
+
+// All interacting pairs among the user's active medications (for alerts).
+export function getInteractions(accessToken: string): Promise<ApiInteractionList> {
+  return requestApi<ApiInteractionList>('/api/v1/interactions', accessToken);
 }
 
 export function getDoseLogs(accessToken: string): Promise<ApiDoseLog[]> {

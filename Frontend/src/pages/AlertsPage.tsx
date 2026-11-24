@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
 import { ChevronDown, ChevronUp, Clock, ShieldAlert, TriangleAlert } from 'lucide-react';
 import { useMedications } from '../context/useMedications';
 import { alertHistory } from '../data/mockData';
-import { getInteractionAlerts, getRefillAlerts } from '../utils/alerts';
+import { getRefillAlerts } from '../utils/alerts';
 import { formatTime, getNextDose, getTodaysDoses, timeUntil } from '../utils/schedule';
 import type { Severity } from '../types';
 
@@ -32,14 +32,14 @@ const typeLabels = {
 };
 
 export default function AlertsPage() {
-  const { medications, takenDoses, missedDoses, skippedDoses, markDoseTaken } = useMedications();
+  const { medications, takenDoses, missedDoses, skippedDoses, markDoseTaken, interactionAlerts } = useMedications();
   const [snoozed, setSnoozed] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Work out the next dose and the alerts that are active right now
   const doses = getTodaysDoses(medications);
   const next = getNextDose(doses, [...takenDoses, ...missedDoses, ...skippedDoses]);
-  const alerts = [...getInteractionAlerts(medications), ...getRefillAlerts(medications)];
+  const alerts = [...interactionAlerts, ...getRefillAlerts(medications)];
 
   // Marks the next dose as taken and clears the snooze message.
   function handleTaken() {
@@ -126,7 +126,7 @@ export default function AlertsPage() {
                   )}
                   <div>
                     <p className={`font-bold ${isDDI ? 'text-red-800' : 'text-amber-900'}`}>
-                      {isDDI ? 'Potential drug-to-drug interaction detected' : 'Refill needed soon'}
+                      {alert.title ?? (isDDI ? 'Potential drug-to-drug interaction detected' : 'Refill needed soon')}
                     </p>
                     <p className="text-sm text-slate-700">{alert.message}</p>
                   </div>
@@ -163,9 +163,8 @@ export default function AlertsPage() {
                   id={`interaction-details-${alert.id}`}
                   className="mt-3 rounded-lg bg-white p-3 text-sm text-slate-700"
                 >
-                  This combination may increase the risk of certain side effects. Please talk to your
-                  doctor or pharmacist before changing how you take your medications. This alert is
-                  assistance only and is not medical advice or diagnosis.
+                  {alert.details ?? 'Please talk to your doctor or pharmacist before changing how you take your medications.'}{' '}
+                  This alert is assistance only and is not medical advice or diagnosis.
                 </p>
               )}
             </div>
@@ -211,4 +210,4 @@ export default function AlertsPage() {
       </section>
     </div>
   );
-}
+}

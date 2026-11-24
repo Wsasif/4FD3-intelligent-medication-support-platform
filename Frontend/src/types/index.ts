@@ -17,6 +17,8 @@ export interface Medication {
   pharmacyId: string;
   remindersOn: boolean;
   notes?: string;
+  drugId?: number | null;  // DDInter drug (needed for interaction checks)
+  drugName?: string | null;
 }
 
 // A single alert: a dose reminder, a refill warning, or a drug interaction (DDI).
@@ -26,6 +28,8 @@ export interface AlertItem {
   message: string;
   severity: Severity;
   timestamp: string;
+  title?: string;   // card heading, if different from the default for this type
+  details?: string; // longer advice shown when the card is expanded
 }
 
 // One past dose in the History page (taken, missed or skipped).
@@ -36,4 +40,4 @@ export interface IntakeRecord {
   medicationName: string;
   dosage: string;
   status: 'Taken' | 'Missed' | 'Skipped';
-}
+}
