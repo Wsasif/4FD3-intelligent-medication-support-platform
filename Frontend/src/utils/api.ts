@@ -160,6 +160,8 @@ async function requestApi<T>(path: string, accessToken: string, init?: RequestIn
     throw new ApiError(message, response.status, detail);
   }
 
+  // 204 No Content (e.g. DELETE) has no body to parse.
+  if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
 }
 
@@ -254,6 +256,14 @@ export function createDoseLog(
   return requestApi<ApiDoseLog>('/api/v1/dose-logs', accessToken, {
     method: 'POST',
     body: JSON.stringify(dose),
+  });
+}
+
+// Undo a dose marked taken or skipped by mistake. The backend deletes the
+// dose log and, for a taken dose, adds the tablets back to the count.
+export function undoDoseLog(accessToken: string, doseLogId: string): Promise<void> {
+  return requestApi<void>(`/api/v1/dose-logs/${encodeURIComponent(doseLogId)}`, accessToken, {
+    method: 'DELETE',
   });
 }
 
