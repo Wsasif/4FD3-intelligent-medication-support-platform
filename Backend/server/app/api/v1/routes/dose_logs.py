@@ -1,3 +1,5 @@
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from psycopg import Connection
 
@@ -36,3 +38,18 @@ def create_dose_log(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Medication not found")
     except service.DoseAlreadyLogged:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Dose already logged")
+
+
+@router.delete("/{dose_log_id}", status_code=status.HTTP_204_NO_CONTENT)
+def undo_dose_log(
+    dose_log_id: UUID,
+    user: CurrentUser = Depends(get_current_user),
+    conn: Connection = Depends(get_db),
+):
+    """Undo a dose marked taken or skipped by mistake (taken also restores the count)."""
+    try:
+        service.undo_dose_log(conn, user.id, dose_log_id)
+    except service.DoseLogNotFound:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dose log not found")
+    except service.DoseUndoNotAllowed as error:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(error))

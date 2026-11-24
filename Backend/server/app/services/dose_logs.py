@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 from uuid import UUID
 
@@ -11,6 +11,19 @@ class MedicationNotFound(Exception):
 
 class DoseAlreadyLogged(Exception):
     pass
+
+
+class DoseLogNotFound(Exception):
+    pass
+
+
+class DoseUndoNotAllowed(Exception):
+    """The dose exists but can't be undone; the message says why."""
+
+
+# A dose can be checked off (and undone) until 1 hour after its scheduled time.
+# After that, reconcile_today() records it as missed.
+CHECK_OFF_WINDOW = timedelta(hours=1)
 
 
 def create_dose_log(
@@ -128,3 +141,46 @@ def reconcile_today(
         )
 
     return list_dose_logs(conn, user_id)
+
+
+def undo_dose_log(conn: Connection, user_id: str, dose_log_id: UUID) -> None:
+    """Reverse a dose marked taken or skipped by mistake.
+
+    Deletes the dose_logs row. If it was "taken", the units taken are added
+    back to the medication's quantity_remaining. Both happen in one
+    transaction, so either both changes are saved or neither is.
+    """
+    with conn.transaction():
+        log = conn.execute(
+            """SELECT dl.id, dl.medication_id, dl.scheduled_for, dl.status
+               FROM dose_logs dl
+               WHERE dl.id = %s AND dl.user_id = %s
+               FOR UPDATE""",
+            (dose_log_id, user_id),
+        ).fetchone()
+        if log is None:
+            raise DoseLogNotFound
+
+        if log["status"] == "missed":
+            raise DoseUndoNotAllowed(
+                "Missed doses are recorded automatically and can't be undone."
+            )
+
+        if datetime.now(timezone.utc) > log["scheduled_for"] + CHECK_OFF_WINDOW:
+            raise DoseUndoNotAllowed(
+                "This dose can only be undone within 1 hour of its scheduled time."
+            )
+
+        conn.execute(
+            """DELETE FROM dose_logs
+               WHERE id = %s AND user_id = %s""",
+            (dose_log_id, user_id),
+        )
+
+        if log["status"] == "taken":
+            conn.execute(
+                """UPDATE medications
+                   SET quantity_remaining = quantity_remaining + units_per_dose
+                   WHERE id = %s AND user_id = %s""",
+                (log["medication_id"], user_id),
+            )
