@@ -4,7 +4,7 @@
 import { Link } from 'react-router-dom';
 import { Plus, Check, X } from 'lucide-react';
 import { useMedications } from '../context/useMedications';
-import { formatTime, getTodaysDoses } from '../utils/schedule';
+import { describeFrequency, dueDaysPerDay, formatTime, getTodaysDoses, isDueOn, nextDueDate } from '../utils/schedule';
 
 export default function MedicationsPage() {
   const {
@@ -78,19 +78,33 @@ export default function MedicationsPage() {
             {medications.map(m => {
               // Values worked out for each row of the table
               const low = m.remaining < m.refillThreshold;
-              const perDay = m.tabletsPerIntake * Math.max(1, m.intakeTimes.length);
-              const daysLeft = Math.floor(m.remaining / perDay);
-              const nextTime = m.intakeTimes.find(t => !takenDoses.includes(`${m.id}|${t}`));
+              // Average tablets per day, e.g. 1 tablet on Mon/Wed/Fri = 3/7 a day.
+              const perDay = m.tabletsPerIntake * Math.max(1, m.intakeTimes.length) * dueDaysPerDay(m);
+              const daysLeft = perDay > 0 ? Math.floor(m.remaining / perDay) : 0;
+              const today = new Date();
+              const dueToday = isDueOn(m, today);
+              const nextTime = dueToday
+                ? m.intakeTimes.find(t => !takenDoses.includes(`${m.id}|${t}`))
+                : undefined;
+              // Not due today, or done for today: show the next day it is due.
+              const tomorrow = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+              const nextDay = nextTime ? null : nextDueDate(m, tomorrow);
+              const nextLabel = nextTime
+                ? formatTime(nextTime)
+                : nextDay
+                  ? `${dueToday ? 'Done today · ' : ''}${nextDay.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}${m.intakeTimes[0] ? `, ${formatTime(m.intakeTimes[0])}` : ''}`
+                  : 'Done today';
 
               return (
                 <tr key={m.id} className="border-t border-slate-100">
                   <th scope="row" className="p-3 font-semibold">
                     {m.name} <span className="font-normal text-slate-500">{m.dosage}</span>
+                    <span className="block text-sm font-normal text-slate-500">{describeFrequency(m)}</span>
                   </th>
                   <td>
                     {m.tabletsPerIntake} {m.tabletsPerIntake === 1 ? 'tablet' : 'tablets'}
                   </td>
-                  <td>{nextTime ? formatTime(nextTime) : 'Done today'}</td>
+                  <td>{nextLabel}</td>
                   <td>{m.remaining} tablets</td>
                   <td>
                     <span

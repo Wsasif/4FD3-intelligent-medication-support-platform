@@ -8,6 +8,9 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Info, X } from 'lucide-react';
 import { useMedications } from '../context/useMedications';
 import DrugPicker from '../components/DrugPicker';
+import FrequencyPicker from '../components/FrequencyPicker';
+import { describeFrequency, frequencyError, toDateString } from '../utils/schedule';
+import type { FrequencyValue } from '../utils/schedule';
 import InteractionReview from '../components/InteractionReview';
 import type { InteractionStatus } from '../components/InteractionReview';
 import type { ApiDrug } from '../utils/api';
@@ -80,6 +83,11 @@ export default function AddMedicationPage() {
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<Errors>({});
   const [newTime, setNewTime] = useState('');
+  // How often it is taken (every day by default, starting today).
+  const [schedule, setSchedule] = useState<FrequencyValue>({
+    frequency: 'daily', repeatEvery: 1, daysOfWeek: [], startDate: toDateString(),
+  });
+  const [scheduleError, setScheduleError] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
   // The DDInter drug this medication is linked to (null = not linked, can't be checked).
@@ -143,8 +151,11 @@ export default function AddMedicationPage() {
       }
     }
 
+    const scheduleProblem = stepToCheck === 2 ? frequencyError(schedule) : '';
+    setScheduleError(scheduleProblem);
+
     setErrors(e);
-    return Object.keys(e).length === 0;
+    return Object.keys(e).length === 0 && !scheduleProblem;
   }
 
   // Goes to the next step, but only if the current one is valid.
@@ -179,6 +190,7 @@ export default function AddMedicationPage() {
         remindersOn: true,
         notes: form.notes.trim() || undefined,
         drugId: drug?.id ?? null,
+        ...schedule,
       }, interactionStatus.acknowledged);
       navigate('/medications');
     } catch (error: unknown) {
@@ -300,8 +312,19 @@ export default function AddMedicationPage() {
         {/* STEP 2: schedule details */}
         {step === 2 && (
           <div className="grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <FrequencyPicker
+                value={schedule}
+                onChange={value => {
+                  setSchedule(value);
+                  setScheduleError('');
+                }}
+                error={scheduleError}
+              />
+            </div>
+
             <div>
-              <Field label="Intake times" htmlFor="newTime" required error={errors.intakeTimes}>
+              <Field label="Intake times (on each day it's taken)" htmlFor="newTime" required error={errors.intakeTimes}>
                 <div className="flex gap-2">
                   <input
                     id="newTime"
@@ -399,6 +422,7 @@ export default function AddMedicationPage() {
                 ['Dosage', form.dosage],
                 ['Condition', form.condition],
                 ['Quantity remaining', `${form.remaining} tablets`],
+                ['How often', `${describeFrequency(schedule)} (from ${schedule.startDate})`],
                 ['Intake times', form.intakeTimes.join(', ')],
                 ['Tablets per intake', form.tabletsPerIntake],
                 ['Low-quantity alert below', `${form.refillThreshold} tablets`],

@@ -3,6 +3,9 @@ import { ArrowLeft, X } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useMedications } from '../context/useMedications';
 import DrugPicker from '../components/DrugPicker';
+import FrequencyPicker from '../components/FrequencyPicker';
+import { frequencyError, toDateString } from '../utils/schedule';
+import type { FrequencyValue } from '../utils/schedule';
 import InteractionReview from '../components/InteractionReview';
 import type { InteractionStatus } from '../components/InteractionReview';
 import type { ApiDrug } from '../utils/api';
@@ -24,6 +27,13 @@ export default function EditMedicationPage() {
   const [refillThreshold, setRefillThreshold] = useState(String(medication?.refillThreshold ?? 5));
   const [intakeTimes, setIntakeTimes] = useState<string[]>(medication?.intakeTimes ?? []);
   const [newTime, setNewTime] = useState('');
+  // How often it is taken. Older medications have no start date yet, so use today.
+  const [schedule, setSchedule] = useState<FrequencyValue>({
+    frequency: medication?.frequency ?? 'daily',
+    repeatEvery: medication?.repeatEvery ?? 1,
+    daysOfWeek: medication?.daysOfWeek ?? [],
+    startDate: medication?.startDate ?? toDateString(),
+  });
   const [notes, setNotes] = useState(medication?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -73,6 +83,11 @@ export default function EditMedicationPage() {
       setError('Add at least one intake time.');
       return;
     }
+    const scheduleProblem = frequencyError(schedule);
+    if (scheduleProblem) {
+      setError(scheduleProblem);
+      return;
+    }
     if (!/^[1-9]\d*$/.test(tabletsPerIntake)) {
       setError('Tablets per intake must be 1 or more.');
       return;
@@ -95,6 +110,7 @@ export default function EditMedicationPage() {
         remindersOn: medication.remindersOn,
         notes: notes.trim() || undefined,
         drugId: drug?.id ?? null,
+        ...schedule,
       }, checkNeeded && interactionStatus.acknowledged);
       navigate('/medications');
     } catch (saveError: unknown) {
@@ -163,7 +179,11 @@ export default function EditMedicationPage() {
         </div>
 
         <div className="mt-5">
-          <p className="mb-2 text-sm font-semibold text-slate-700">Intake times</p>
+          <FrequencyPicker value={schedule} onChange={setSchedule} />
+        </div>
+
+        <div className="mt-5">
+          <p className="mb-2 text-sm font-semibold text-slate-700">Intake times (on each day it's taken)</p>
           <div className="flex gap-2">
             <input type="time" className={inputClass} value={newTime} onChange={event => setNewTime(event.target.value)} />
             <button type="button" onClick={addTime} className="rounded-lg bg-sky-100 px-4 font-semibold text-blue-800">Add</button>
