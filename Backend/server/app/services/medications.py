@@ -3,6 +3,7 @@ from uuid import UUID
 from psycopg import Connection
 
 from app.schemas.medication import MedicationCreate
+from app.services.interactions import guard_major
 
 MED_COLUMNS = """id, name, dosage, units_per_dose, condition, quantity_remaining,
     refill_alert_days, is_as_needed, low_quantity_alert, drug_id, pharmacy_id,
@@ -42,9 +43,24 @@ def _intake_times(conn: Connection, user_id: str, med_ids: list[UUID]) -> dict:
     return times
 
 
-def create_medication(conn: Connection, user_id: str, data: MedicationCreate) -> dict:
+def _attach_drug_names(conn: Connection, meds: list[dict]) -> None:
+    """Add drug_name (from DDInter) so the app can show which drug a medication is linked to."""
+    ids = list({m["drug_id"] for m in meds if m.get("drug_id") is not None})
+    names = {}
+    if ids:
+        rows = conn.execute("SELECT id, name FROM drugs WHERE id = ANY(%s)", (ids,)).fetchall()
+        names = {r["id"]: r["name"] for r in rows}
+    for m in meds:
+        m["drug_name"] = names.get(m.get("drug_id"))
+
+
+def create_medication(
+    conn: Connection, user_id: str, data: MedicationCreate, acknowledge_interactions: bool = False
+) -> dict:
     with conn.transaction():  # all or nothing
         _check_references(conn, user_id, data.drug_id, data.pharmacy_id)
+        # Stop a major interaction unless the user has seen and accepted the warning.
+        guard_major(conn, user_id, data.drug_id, None, acknowledge_interactions)
         med = conn.execute(
             f"""INSERT INTO medications (user_id, name, dosage, units_per_dose, condition,
                     quantity_remaining, refill_alert_days, is_as_needed, low_quantity_alert,
@@ -63,6 +79,7 @@ def create_medication(conn: Connection, user_id: str, data: MedicationCreate) ->
                 (user_id, med["id"], t),
             )
     med["intake_times"] = sorted(data.intake_times)
+    _attach_drug_names(conn, [med])
     return med
 
 
@@ -76,6 +93,7 @@ def list_medications(conn: Connection, user_id: str, include_inactive: bool) -> 
     times = _intake_times(conn, user_id, [m["id"] for m in meds])
     for m in meds:
         m["intake_times"] = times[m["id"]]
+    _attach_drug_names(conn, meds)
     return meds
 
 
@@ -87,10 +105,14 @@ def get_medication(conn: Connection, user_id: str, med_id: UUID) -> dict | None:
     if med is None:
         return None
     med["intake_times"] = _intake_times(conn, user_id, [med_id])[med_id]
+    _attach_drug_names(conn, [med])
     return med
 
 
-def update_medication(conn: Connection, user_id: str, med_id: UUID, changes: dict) -> dict | None:
+def update_medication(
+    conn: Connection, user_id: str, med_id: UUID, changes: dict,
+    acknowledge_interactions: bool = False,
+) -> dict | None:
     """Apply only the changed fields, then re-check every rule on the result."""
     with conn.transaction():
         current = get_medication(conn, user_id, med_id)
@@ -100,6 +122,12 @@ def update_medication(conn: Connection, user_id: str, med_id: UUID, changes: dic
         checked = MedicationCreate.model_validate(merged)  # same rules as create
         _check_references(conn, user_id, checked.drug_id, checked.pharmacy_id)
         is_active = merged["is_active"] if merged["is_active"] is not None else current["is_active"]
+        # Re-check interactions only when the result is active and the drug changed
+        # or the medication is being reactivated.
+        drug_changed = checked.drug_id != current["drug_id"]
+        reactivated = is_active and not current["is_active"]
+        if is_active and (drug_changed or reactivated):
+            guard_major(conn, user_id, checked.drug_id, med_id, acknowledge_interactions)
         med = conn.execute(
             f"""UPDATE medications SET
                     name = %(name)s, dosage = %(dosage)s, units_per_dose = %(units_per_dose)s,
@@ -125,6 +153,7 @@ def update_medication(conn: Connection, user_id: str, med_id: UUID, changes: dic
                     (user_id, med_id, t),
                 )
     med["intake_times"] = sorted(checked.intake_times)
+    _attach_drug_names(conn, [med])
     return med
 
 
@@ -135,4 +164,4 @@ def delete_medication(conn: Connection, user_id: str, med_id: UUID) -> bool:
             "DELETE FROM medications WHERE id = %s AND user_id = %s RETURNING id",
             (med_id, user_id),
         ).fetchone()
-    return row is not None
+    return row is not None

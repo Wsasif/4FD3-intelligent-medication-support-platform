@@ -43,6 +43,7 @@ class MedicationOut(MedicationBase):
     is_active: bool
     created_at: datetime
     intake_times: list[time]
+    drug_name: str | None = None    # DDInter name of drug_id, for display
 
 
 class MedicationUpdate(BaseModel):
