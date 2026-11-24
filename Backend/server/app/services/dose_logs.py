@@ -4,6 +4,8 @@ from uuid import UUID
 
 from psycopg import Connection
 
+from app.services.schedule_rules import is_due_on
+
 
 class MedicationNotFound(Exception):
     pass
@@ -108,7 +110,8 @@ def reconcile_today(
 
     schedules = conn.execute(
         """SELECT ms.medication_id, ms.intake_time,
-                  m.name AS medication_name, m.dosage
+                  m.name AS medication_name, m.dosage,
+                  m.frequency, m.repeat_every, m.days_of_week, m.start_date, m.end_date
            FROM medication_schedules ms
            JOIN medications m ON m.id = ms.medication_id
            WHERE ms.user_id = %s
@@ -120,6 +123,8 @@ def reconcile_today(
     ).fetchall()
 
     for schedule in schedules:
+        if not is_due_on(schedule, today):  # e.g. a weekly med on one of its off days
+            continue
         scheduled_for = datetime.combine(today, schedule["intake_time"], tzinfo=zone)
         if scheduled_for > cutoff:
             continue
