@@ -12,7 +12,7 @@ from psycopg import Connection
 from app.core.config import get_settings
 from app.db.session import get_db, pool
 
-from app.api.v1.routes import users, drugs, medications, dose_logs
+from app.api.v1.routes import users, drugs, medications, dose_logs, interactions
 
 settings = get_settings()
 
@@ -50,3 +50,4 @@ app.include_router(users.router, prefix="/api/v1")
 app.include_router(drugs.router, prefix="/api/v1")
 app.include_router(medications.router, prefix="/api/v1")
 app.include_router(dose_logs.router, prefix="/api/v1")
+app.include_router(interactions.router, prefix="/api/v1")

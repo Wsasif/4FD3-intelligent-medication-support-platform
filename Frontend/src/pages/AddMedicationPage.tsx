@@ -7,6 +7,10 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Check, Info, X } from 'lucide-react';
 import { useMedications } from '../context/useMedications';
+import DrugPicker from '../components/DrugPicker';
+import InteractionReview from '../components/InteractionReview';
+import type { InteractionStatus } from '../components/InteractionReview';
+import type { ApiDrug } from '../utils/api';
 
 // Everything the form collects. Inputs give us text, so numbers are kept as
 // strings here and only converted to numbers when saving.
@@ -78,11 +82,23 @@ export default function AddMedicationPage() {
   const [newTime, setNewTime] = useState('');
   const [saveError, setSaveError] = useState('');
   const [saving, setSaving] = useState(false);
+  // The DDInter drug this medication is linked to (null = not linked, can't be checked).
+  const [drug, setDrug] = useState<ApiDrug | null>(null);
+  const [interactionStatus, setInteractionStatus] = useState<InteractionStatus>({
+    ready: false, hasMajor: false, acknowledged: false,
+  });
+  const blockedByMajor = interactionStatus.hasMajor && !interactionStatus.acknowledged;
 
   // Changes one field of the form and clears that field's error message.
   function update<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(prev => ({ ...prev, [key]: value }));
     setErrors(prev => ({ ...prev, [key]: undefined }));
+  }
+
+  // Links a drug from the search. Fills in the name if the user hasn't typed one.
+  function chooseDrug(chosen: ApiDrug | null) {
+    setDrug(chosen);
+    if (chosen && !form.name.trim()) update('name', chosen.name);
   }
 
   // Adds the chosen time to the list of intake times (ignores blanks and duplicates).
@@ -146,6 +162,7 @@ export default function AddMedicationPage() {
   async function save() {
     if (!validate(1)) return setStep(1);
     if (!validate(2)) return setStep(2);
+    if (!interactionStatus.ready || blockedByMajor) return;
 
     setSaveError('');
     setSaving(true);
@@ -161,7 +178,8 @@ export default function AddMedicationPage() {
         pharmacyId: '',
         remindersOn: true,
         notes: form.notes.trim() || undefined,
-      });
+        drugId: drug?.id ?? null,
+      }, interactionStatus.acknowledged);
       navigate('/medications');
     } catch (error: unknown) {
       setSaveError(error instanceof Error ? error.message : 'Could not save this medication.');
@@ -213,6 +231,12 @@ export default function AddMedicationPage() {
         {/* STEP 1: medication details */}
         {step === 1 && (
           <div className="grid gap-5 md:grid-cols-2">
+            <div className="md:col-span-2">
+              <Field label="Find the drug in our database (for interaction checks)" htmlFor="drugSearch">
+                <DrugPicker value={drug} onChange={chooseDrug} />
+              </Field>
+            </div>
+
             <Field label="Medication name" htmlFor="name" required error={errors.name}>
               <input
                 id="name"
@@ -371,6 +395,7 @@ export default function AddMedicationPage() {
             <dl className="grid gap-x-8 gap-y-3 md:grid-cols-2">
               {[
                 ['Medication name', form.name],
+                ['Linked drug', drug ? drug.name : 'Not linked (not checked for interactions)'],
                 ['Dosage', form.dosage],
                 ['Condition', form.condition],
                 ['Quantity remaining', `${form.remaining} tablets`],
@@ -385,6 +410,14 @@ export default function AddMedicationPage() {
                 </div>
               ))}
             </dl>
+            <div className="mt-6">
+              {/* key: start fresh (and clear the tick box) if the linked drug changes */}
+              <InteractionReview
+                key={drug?.id ?? 'none'}
+                drugId={drug?.id ?? null}
+                onStatusChange={setInteractionStatus}
+              />
+            </div>
           </div>
         )}
 
@@ -411,7 +444,7 @@ export default function AddMedicationPage() {
             <button
               type="button"
               onClick={save}
-              disabled={saving}
+              disabled={saving || !interactionStatus.ready || blockedByMajor}
               className="flex-1 rounded-lg bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
             >
               {saving ? 'Saving…' : 'Save Medication'}
@@ -426,4 +459,4 @@ export default function AddMedicationPage() {
       </div>
     </div>
   );
-}
+}

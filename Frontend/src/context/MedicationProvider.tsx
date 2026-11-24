@@ -4,7 +4,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
-import type { Medication } from '../types';
+import type { AlertItem, Medication } from '../types';
 import { MedicationContext } from './MedicationContext';
 import type { MedicationContextValue } from './MedicationContext';
 import { useAuth } from './useAuth';
@@ -12,9 +12,11 @@ import {
   createDoseLog,
   createMedication as postMedication,
   getDoseLogs,
+  getInteractions,
   getMedications,
   updateMedication as patchMedication,
 } from '../utils/api';
+import { toInteractionAlerts } from '../utils/alerts';
 
 function mapMedication(row: Awaited<ReturnType<typeof getMedications>>[number]): Medication {
   return {
@@ -29,6 +31,8 @@ function mapMedication(row: Awaited<ReturnType<typeof getMedications>>[number]):
     pharmacyId: '',
     remindersOn: true,
     notes: row.notes ?? undefined,
+    drugId: row.drug_id,
+    drugName: row.drug_name,
   };
 }
 
@@ -69,6 +73,24 @@ function syncDoseStates(
     .filter((key): key is string => key !== null));
 }
 
+// Interaction alerts are extra: if that request fails, the rest of the app still loads,
+// and the user sees one alert telling them the check couldn't run.
+async function loadInteractionAlerts(accessToken: string): Promise<AlertItem[]> {
+  try {
+    return toInteractionAlerts(await getInteractions(accessToken));
+  } catch {
+    return [{
+      id: 'ddi-check-failed',
+      type: 'DDI',
+      title: 'Interaction check unavailable',
+      message: "We couldn't check your medications for interactions right now. "
+        + 'Please contact your doctor or pharmacist to verify your combinations.',
+      severity: 'Medium',
+      timestamp: new Date().toISOString(),
+    }];
+  }
+}
+
 // Wraps the app (see main.tsx) and holds the actual data.
 export function MedicationProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
@@ -78,6 +100,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
   const [skippedDoses, setSkippedDoses] = useState<string[]>([]);
   const [loadedForToken, setLoadedForToken] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<{ token: string; message: string } | null>(null);
+  const [storedInteractionAlerts, setStoredInteractionAlerts] = useState<AlertItem[]>([]);
   const loadVersion = useRef(0);
 
   const accessToken = session?.access_token;
@@ -86,10 +109,11 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     let active = true;
     const version = ++loadVersion.current;
 
-    Promise.all([getMedications(accessToken), getDoseLogs(accessToken)])
-      .then(([medicationRows, doseRows]) => {
+    Promise.all([getMedications(accessToken), getDoseLogs(accessToken), loadInteractionAlerts(accessToken)])
+      .then(([medicationRows, doseRows, interactionAlerts]) => {
         if (!active || version !== loadVersion.current) return;
         setStoredMedications(medicationRows.map(mapMedication));
+        setStoredInteractionAlerts(interactionAlerts);
         syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
         setLoadError(null);
         setLoadedForToken(accessToken);
@@ -121,6 +145,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
   }, [accessToken]);
 
   const medications = loadedForToken === accessToken ? storedMedications : [];
+  const interactionAlerts = loadedForToken === accessToken ? storedInteractionAlerts : [];
   const loading = Boolean(accessToken) && loadedForToken !== accessToken;
   const error = loadError && loadError.token === accessToken ? loadError.message : '';
 
@@ -128,12 +153,14 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     if (!accessToken) return;
     const version = ++loadVersion.current;
     try {
-      const [rows, doseRows] = await Promise.all([
+      const [rows, doseRows, interactionRows] = await Promise.all([
         getMedications(accessToken),
         getDoseLogs(accessToken),
+        loadInteractionAlerts(accessToken),
       ]);
       if (version !== loadVersion.current) return;
       setStoredMedications(rows.map(mapMedication));
+      setStoredInteractionAlerts(interactionRows);
       syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
       setLoadError(null);
       setLoadedForToken(accessToken);
@@ -147,7 +174,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken]);
 
-  async function addMedication(m: Omit<Medication, 'id'>) {
+  async function addMedication(m: Omit<Medication, 'id'>, acknowledgeInteractions = false) {
     if (!accessToken) throw new Error('Sign in before adding a medication.');
     await postMedication(accessToken, {
       name: m.name,
@@ -159,12 +186,17 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       low_quantity_alert: m.refillThreshold,
       intake_times: m.intakeTimes,
       pharmacy_id: null,
+      drug_id: m.drugId ?? null,
       notes: m.notes ?? null,
-    });
+    }, acknowledgeInteractions);
     await reloadMedications();
   }
 
-  async function updateMedication(medicationId: string, m: Omit<Medication, 'id'>) {
+  async function updateMedication(
+    medicationId: string,
+    m: Omit<Medication, 'id'>,
+    acknowledgeInteractions = false,
+  ) {
     if (!accessToken) throw new Error('Sign in before updating a medication.');
     await patchMedication(accessToken, medicationId, {
       name: m.name,
@@ -174,8 +206,9 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       quantity_remaining: m.remaining,
       low_quantity_alert: m.refillThreshold,
       intake_times: m.intakeTimes,
+      drug_id: m.drugId ?? null,
       notes: m.notes ?? null,
-    });
+    }, acknowledgeInteractions);
     await reloadMedications();
   }
 
@@ -237,6 +270,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     skippedDoses,
     loading,
     error,
+    interactionAlerts,
     reloadMedications,
     addMedication,
     updateMedication,
@@ -249,4 +283,4 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       {children}
     </MedicationContext.Provider>
   );
-}
+}

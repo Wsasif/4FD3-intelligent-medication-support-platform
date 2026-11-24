@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useMedications } from '../context/useMedications';
 import { useAuth } from '../context/useAuth';
-import { getInteractionAlerts, getRefillAlerts } from '../utils/alerts';
+import { getRefillAlerts } from '../utils/alerts';
 import { formatTime, getNextDose, getTodaysDoses } from '../utils/schedule';
 import { getProfile } from '../utils/api';
 
@@ -34,7 +34,7 @@ function StatCard({ label, value, to, warn }: StatCardProps) {
 }
 
 export default function DashboardPage() {
-  const { medications, takenDoses } = useMedications();
+  const { medications, takenDoses, interactionAlerts } = useMedications();
   const { session } = useAuth();
   const [profileName, setProfileName] = useState('');
   const [profileLoading, setProfileLoading] = useState(true);
@@ -71,7 +71,6 @@ export default function DashboardPage() {
   const next = getNextDose(doses, takenDoses);
 
   const refillAlerts = getRefillAlerts(medications);
-  const interactionAlerts = getInteractionAlerts(medications);
   const alertCount = refillAlerts.length + interactionAlerts.length;
 
   return (
