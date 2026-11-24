@@ -14,6 +14,7 @@ import {
   getDoseLogs,
   getInteractions,
   getMedications,
+  undoDoseLog,
   updateMedication as patchMedication,
 } from '../utils/api';
 import { toInteractionAlerts } from '../utils/alerts';
@@ -58,7 +59,15 @@ function syncDoseStates(
   setTakenDoses: (keys: string[]) => void,
   setMissedDoses: (keys: string[]) => void,
   setSkippedDoses: (keys: string[]) => void,
+  setDoseLogIds: (ids: Record<string, string>) => void,
 ) {
+  // Remember which dose log belongs to each "<medId>|HH:MM" key so a dose can be undone.
+  const ids: Record<string, string> = {};
+  for (const row of doseRows) {
+    const key = localDoseKey(row);
+    if (key) ids[key] = row.id;
+  }
+  setDoseLogIds(ids);
   setTakenDoses(doseRows
     .filter(row => row.status === 'taken')
     .map(row => localDoseKey(row))
@@ -98,6 +107,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
   const [takenDoses, setTakenDoses] = useState<string[]>([]);
   const [missedDoses, setMissedDoses] = useState<string[]>([]);
   const [skippedDoses, setSkippedDoses] = useState<string[]>([]);
+  const [doseLogIds, setDoseLogIds] = useState<Record<string, string>>({});
   const [loadedForToken, setLoadedForToken] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<{ token: string; message: string } | null>(null);
   const [storedInteractionAlerts, setStoredInteractionAlerts] = useState<AlertItem[]>([]);
@@ -114,7 +124,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
         if (!active || version !== loadVersion.current) return;
         setStoredMedications(medicationRows.map(mapMedication));
         setStoredInteractionAlerts(interactionAlerts);
-        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses, setDoseLogIds);
         setLoadError(null);
         setLoadedForToken(accessToken);
       })
@@ -136,7 +146,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     if (!accessToken) return;
     const interval = window.setInterval(() => {
       void getDoseLogs(accessToken).then(doseRows => {
-        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+        syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses, setDoseLogIds);
       }).catch(() => {
         // The next reconciliation attempt will retry automatically.
       });
@@ -161,7 +171,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       if (version !== loadVersion.current) return;
       setStoredMedications(rows.map(mapMedication));
       setStoredInteractionAlerts(interactionRows);
-      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses, setDoseLogIds);
       setLoadError(null);
       setLoadedForToken(accessToken);
     } catch (requestError: unknown) {
@@ -230,7 +240,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       });
       await reloadMedications();
       const doseRows = await getDoseLogs(accessToken);
-      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses, setDoseLogIds);
     } catch (requestError: unknown) {
       setLoadError({
         token: accessToken,
@@ -254,11 +264,28 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
         status: 'skipped',
       });
       const doseRows = await getDoseLogs(accessToken);
-      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses);
+      syncDoseStates(doseRows, setTakenDoses, setMissedDoses, setSkippedDoses, setDoseLogIds);
     } catch (requestError: unknown) {
       setLoadError({
         token: accessToken,
         message: requestError instanceof Error ? requestError.message : 'Could not skip this dose.',
+      });
+    }
+  };
+
+  // Undo a dose marked Taken or Skipped by mistake, then reload so the
+  // tablet count and the check-off state both update.
+  const undoDose = async (medicationId: string, time: string) => {
+    const doseLogId = doseLogIds[`${medicationId}|${time}`];
+    if (!accessToken || !doseLogId) return;
+
+    try {
+      await undoDoseLog(accessToken, doseLogId);
+      await reloadMedications();
+    } catch (requestError: unknown) {
+      setLoadError({
+        token: accessToken,
+        message: requestError instanceof Error ? requestError.message : 'Could not undo this dose.',
       });
     }
   };
@@ -276,6 +303,7 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
     updateMedication,
     markDoseTaken,
     markDoseSkipped,
+    undoDose,
   };
 
   return (
@@ -283,4 +311,4 @@ export function MedicationProvider({ children }: { children: ReactNode }) {
       {children}
     </MedicationContext.Provider>
   );
-}
+}

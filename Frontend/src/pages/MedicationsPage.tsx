@@ -14,6 +14,7 @@ export default function MedicationsPage() {
     skippedDoses,
     markDoseTaken,
     markDoseSkipped,
+    undoDose,
     loading,
     error,
     reloadMedications,
@@ -141,6 +142,18 @@ export default function MedicationsPage() {
               const missed = persistedMissed || (
                 !taken && !skipped && nowMinutes > scheduledMinutes + 60
               );
+              // Same 1-hour window as checking off: after that the dose is final.
+              const canUndo = (taken || skipped) && nowMinutes <= scheduledMinutes + 60;
+              const undoButton = canUndo && (
+                <button
+                  type="button"
+                  onClick={() => void undoDose(d.medication.id, d.time)}
+                  aria-label={`Undo ${taken ? 'taken' : 'skipped'} for ${d.medication.name} at ${formatTime(d.time)}`}
+                  className="text-xs font-medium text-blue-700 hover:underline"
+                >
+                  Undo
+                </button>
+              );
               return (
                 <li
                   key={d.key}
@@ -155,12 +168,15 @@ export default function MedicationsPage() {
                     {skipped && <p className="mt-1 text-xs font-semibold text-amber-700">Skipped</p>}
                   </div>
                   {taken ? (
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-green-500 text-white"
-                      aria-label="Taken"
-                    >
-                      <Check size={18} />
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-green-500 text-white"
+                        aria-label="Taken"
+                      >
+                        <Check size={18} />
+                      </span>
+                      {undoButton}
+                    </div>
                   ) : missed ? (
                     <span
                       className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500 text-white"
@@ -170,13 +186,16 @@ export default function MedicationsPage() {
                       <X size={18} />
                     </span>
                   ) : skipped ? (
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-white"
-                      aria-label="Skipped"
-                      title="Recorded as skipped"
-                    >
-                      <X size={18} />
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="flex h-9 w-9 items-center justify-center rounded-full bg-amber-500 text-white"
+                        aria-label="Skipped"
+                        title="Recorded as skipped"
+                      >
+                        <X size={18} />
+                      </span>
+                      {undoButton}
+                    </div>
                   ) : (
                     <div className="flex items-center gap-2">
                       <button

@@ -18,6 +18,8 @@ export interface MedicationContextValue {
   ) => Promise<void>;
   markDoseTaken: (medicationId: string, time: string) => Promise<void>;
   markDoseSkipped: (medicationId: string, time: string) => Promise<void>;
+  // Reverses a Taken/Skipped check-off (only within 1 hour of the scheduled time).
+  undoDose: (medicationId: string, time: string) => Promise<void>;
 }
 
 export const MedicationContext = createContext<MedicationContextValue | null>(null);
